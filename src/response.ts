@@ -15,4 +15,12 @@ export class response {
       },
     });
   }
+  static async JSON403(req: object | null): Promise<Response> {
+    return await new Response(JSON.stringify(req), {
+      status: 403,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+      },
+    });
+  }
 }

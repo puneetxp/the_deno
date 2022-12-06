@@ -12,7 +12,7 @@ export class Router {
       if (r.guard) {
         const guard = await r.guard();
         if (guard) {
-          return response.JSON200({ guard });
+          return response.JSON403({ guard });
         }
       }
       const params: any[] = [];
