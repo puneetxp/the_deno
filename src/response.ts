@@ -1,5 +1,5 @@
 export class response {
-  static async JSON200(req: object | null): Promise<Response> {
+  static async JSON200(req: any): Promise<Response> {
     return await new Response(JSON.stringify(req), {
       status: 200,
       headers: {
@@ -7,7 +7,7 @@ export class response {
       },
     });
   }
-  static async JSON404(req: object | null): Promise<Response> {
+  static async JSON404(req: any): Promise<Response> {
     return await new Response(JSON.stringify(req), {
       status: 404,
       headers: {
@@ -15,7 +15,7 @@ export class response {
       },
     });
   }
-  static async JSON403(req: object | null): Promise<Response> {
+  static async JSON403(req: any): Promise<Response> {
     return await new Response(JSON.stringify(req), {
       status: 403,
       headers: {
