@@ -45,13 +45,21 @@ export class Router {
     return await response.JSON404("Not Found");
   }
 }
-function child_route(path: string, route: Route_Group_with[]): Routes {
+function child_route(
+  path: string,
+  route: Route_Group_with[],
+  guard?: guard[]
+): Routes {
   let x: Routes = {};
   for (const e of route) {
     if (e.group) {
       x = mergeObject(x, compile_group(e.group, path));
     } else if (e.child) {
-      x = mergeObject(x, child_route(path + e.path, e.child));
+      if (e.guard) {
+        x = mergeObject(x, child_route(path + e.path, e.child, e.guard));
+      } else {
+        x = mergeObject(x, child_route(path + e.path, e.child));
+      }
     } else {
       e.path = path + e.path;
       if (e.handler && e.method) {
@@ -107,7 +115,11 @@ export function compile_route(route_pre: _Routes) {
         ];
       }
     } else if (e.child) {
-      route = mergeObject(route, child_route(e.path, e.child));
+      if (e.guard) {
+        route = mergeObject(route, child_route(e.path, e.child, e.guard));
+      } else {
+        route = mergeObject(route, child_route(e.path, e.child));
+      }
     } else if (e.crud) {
       route = mergeObject(
         route,

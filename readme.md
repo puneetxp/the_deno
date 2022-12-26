@@ -29,9 +29,43 @@ export const _routes: _Routes = [
   },
   { path: "/login", method: "GET", handler: AuthController.Status },
   { path: "/login", method: "POST", handler: AuthController.Login },
-  { path: "/logout", method: "GET", handler: AuthController.Login, guard: [AuthGuard] },
+  { path: "/logout", method: "GET", handler: AuthController.Login },
   { path: "/register", method: "POST", handler: AuthController.Register },
 ]
+```
+
+## Guard
+
+### Guard are async function
+
+if there is string it will return string as error 403.
+
+```ts
+guard?: () => Promise<false | string>;
+```
+
+#### Guard function
+
+```ts
+export const AuthGuard = async (): Promise<false | string> => {
+  return await "Not Assesbile";
+};
+```
+
+#### We Can use it like
+
+```ts
+import { response } from "../../repo/response.ts";
+import { compile_route } from "../../repo/router.ts";
+import { _Routes } from "../../repo/Type.ts";
+export const _routes: _Routes = [
+  {
+    path: "/login",
+    method: "GET",
+    handler: AuthController.Status,
+    guard: [AuthGuard],
+  },
+];
 ```
 
 ### We can create a Group for curd
@@ -75,12 +109,4 @@ export const routes = compile_route(_routes);
 
 ```ts
 export type Routes = Record<string, Route[]>;
-```
-
-## Guard are async function
-
-if there is string it will return string as error 403.
-
-```ts
-guard?: () => Promise<false | string>;
 ```
