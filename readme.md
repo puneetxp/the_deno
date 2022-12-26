@@ -1,5 +1,9 @@
 ## Start
 
+Fastest on 2400g we can achive 2650-2950 req per second.
+
+Usually 33% faster then Oak
+
 Let See Example
 
 ```ts
