@@ -48,7 +48,7 @@ export class Router {
 function child_route(
   path: string,
   route: Route_Group_with[],
-  guard?: guard[]
+  guard: guard[] = []
 ): Routes {
   let x: Routes = {};
   for (const e of route) {
@@ -56,9 +56,12 @@ function child_route(
       x = mergeObject(x, compile_group(e.group, path));
     } else if (e.child) {
       if (e.guard) {
-        x = mergeObject(x, child_route(path + e.path, e.child, e.guard));
+        x = mergeObject(
+          x,
+          child_route(path + e.path, e.child, [...guard, ...e.guard])
+        );
       } else {
-        x = mergeObject(x, child_route(path + e.path, e.child));
+        x = mergeObject(x, child_route(path + e.path, e.child, guard));
       }
     } else {
       e.path = path + e.path;
