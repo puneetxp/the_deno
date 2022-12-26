@@ -1,3 +1,36 @@
+## Start
+
+```ts
+import {
+  compile_route,
+  response,
+  routes,
+} from "https://deno.land/x/the@0.0.0.1/mod.ts";
+import { serve } from "https://deno.land/std@0.170.0/http/server.ts";
+const route = compile_route([{
+  path: "/checlk",
+  handler: () => response.JSON200("s"),
+}, {
+  path: "/checldk",
+  method: "POST",
+  handler: () => response.JSON200("s"),
+}]);
+serve(
+  async (req: Request): Promise<Response> => {
+    return await new Router(routes).route(req);
+  },
+  { port: 3333 },
+);
+```
+
+## Response
+
+Every Controller should return new Response.
+
+```ts
+(() => response.JSON200("s"));
+```
+
 ## Router
 
 When I am trying to using URLPattern I see such a performace hit so it seem
