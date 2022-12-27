@@ -1,8 +1,32 @@
 ## Start
 
-Fastest on 2400g we can achive 2650-2950 req per second.
+On Our Frameset
 
-Usually 33% faster then Oak
+```bash
+Running 10s test @ http://localhost:3333
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   397.97us  497.73us   9.72ms   97.06%
+    Req/Sec    14.48k     1.00k   16.18k    78.50%
+  288023 requests in 10.00s, 39.00MB read
+Requests/sec:  28800.79
+Transfer/sec:      3.90MB
+```
+
+When oak
+
+```bash
+Running 10s test @ http://localhost:8080/
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   633.04us    0.98ms  31.01ms   97.65%
+    Req/Sec     8.79k     1.34k   14.73k    91.54%
+  175770 requests in 10.10s, 46.94MB read
+Requests/sec:  17402.96
+Transfer/sec:      4.65MB
+```
+
+Usually 33%++ faster then Oak
 
 Let See Example
 
@@ -13,14 +37,15 @@ import {
   routes,
 } from "https://deno.land/x/the@0.0.0.1/mod.ts";
 import { serve } from "https://deno.land/std@0.170.0/http/server.ts";
-const route = compile_route([{
+const _routes = [{
   path: "/checlk",
   handler: () => response.JSON200("s"),
 }, {
   path: "/checldk",
   method: "POST",
   handler: () => response.JSON200("s"),
-}]);
+}];
+const routes = compile_route(_route);
 serve(
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
@@ -28,6 +53,8 @@ serve(
   { port: 3333 },
 );
 ```
+
+If there is Method not present it get default to GET.
 
 ## Response
 
