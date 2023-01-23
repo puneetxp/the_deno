@@ -179,5 +179,6 @@ export type Routes = Record<string, Route[]>;
 
 Router/Framework Flow
 
-![deno router](https://user-images.githubusercontent.com/19248561/214020858-bc7aa3a6-6e12-42c7-92f1-4e5bd03e582c.svg)
+<!-- ![deno router](https://user-images.githubusercontent.com/19248561/214020858-bc7aa3a6-6e12-42c7-92f1-4e5bd03e582c.svg) -->
+![deno router transparent](https://user-images.githubusercontent.com/19248561/214021159-d37cc8d8-879e-45b4-841d-b6ed7727bad4.svg)
 
