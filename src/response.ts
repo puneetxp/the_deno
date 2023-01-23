@@ -18,9 +18,10 @@ export class response {
   static async JSONF(
     body: any,
     header: Record<string, string | null> = {},
+    status?: number,
   ) {
     return new Response(JSON.stringify(body), {
-      status: 200,
+      status: status || 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
         ...header,
