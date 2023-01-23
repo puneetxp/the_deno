@@ -26,7 +26,7 @@ Requests/sec:  17402.96
 Transfer/sec:      4.65MB
 ```
 
-Usually 33%++ faster then Oakisuper
+Usually 33%++ faster then Oak
 
 Let See Example
 
@@ -257,7 +257,7 @@ const user = [
 Crud has it meaning here is 
 ```bash
 ['c','r','u','d','all','where','upsert'] 
-```
+
 c for create
 r for read
 u for update
@@ -265,7 +265,7 @@ d for delete
 all for read all
 where for read where
 upsert is add in bulk
-
+```
 ```ts
 const user = { 
   path: "/user", 
