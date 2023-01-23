@@ -80,16 +80,7 @@ export function compile_routes(route_pre: _Routes): Routes {
   return route_path_clean(route);
 }
 function compile_route(route: Route_Group_with): Routes | undefined {
-  let routes: Routes ={};
-  if (route.group) {
-    mergeObject(routes, compile_group(
-      route.group,
-      route.path,
-      route.islogin,
-      route.roles,
-      route.guard,
-    ));
-  }
+  let routes: Routes = {};
   if (route.handler) {
     const x: Routes = {};
     if (!route.method) {
@@ -112,23 +103,41 @@ function compile_route(route: Route_Group_with): Routes | undefined {
     ];
     return x;
   }
+  if (route.group) {
+    mergeObject(
+      routes,
+      compile_group(
+        route.group,
+        route.path,
+        route.islogin,
+        route.roles,
+        route.guard,
+      ),
+    );
+  }
   if (route.child) {
-    mergeObject(routes,  child_route(
-      route.child,
-      route.path,
-      route.islogin,
-      route.roles,
-      route.guard,
-    ));
+    mergeObject(
+      routes,
+      child_route(
+        route.child,
+        route.path,
+        route.islogin,
+        route.roles,
+        route.guard,
+      ),
+    );
   }
   if (route.crud) {
-    mergeObject(routes,  crud(
-      route.crud,
-      route.path,
-      route.islogin,
-      route.roles,
-      route.guard,
-    ));
+    mergeObject(
+      routes,
+      crud(
+        route.crud,
+        route.path,
+        route.islogin,
+        route.roles,
+        route.guard,
+      ),
+    );
   }
   return routes;
 }
