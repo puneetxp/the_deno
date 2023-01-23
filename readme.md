@@ -1,6 +1,6 @@
 ## Start
 
-On Our Frameset
+On Our Framework
 
 ```bash
 Running 10s test @ http://localhost:3333
@@ -32,20 +32,20 @@ Let See Example
 
 ```ts
 import {
-  compile_route,
+  compile_routess,
   response,
-  routes,
+  Router,
 } from "https://deno.land/x/the@0.0.0.3/mod.ts";
 import { serve } from "https://deno.land/std@0.173.0/http/server.ts";
 const _routes = [{
   path: "/checlk",
-  handler: () => response.JSON200("s"),
+  handler: () => response.JSON("s"),
 }, {
   path: "/checldk",
   method: "POST",
-  handler: () => response.JSON200("s"),
+  handler: () => response.JSON("s"),
 }];
-const routes = compile_route(_route);
+const routes = compile_routess(_route);
 serve(
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
@@ -54,15 +54,58 @@ serve(
 );
 ```
 
-If there is Method not present it get default to GET.
+If there is Method not present it get default to GET. If path is not there it
+will assume it is empty.
 
 ## Response
 
 Every Controller should return new Response.
 
 ```ts
-(() => response.JSON200("s"));
+(() => response.JSON("s"));
 ```
+
+### Response Class
+
+```ts
+import { Session } from "./Session.ts";
+export class response {
+  //JSON return a Json response with session regenrate the cookie id 
+  //and set new cookie. as old one exipre after a request.
+  static async JSON(
+    body: any,
+    session?: Session,
+    status?: number,
+    header?: Record<string, string | null>,
+  ) {
+    return new Response(JSON.stringify(body), {
+      status: status || 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...header,
+        ...(session && session.reactiveSession().returnCookie()),
+      },
+    });
+  }
+
+  //JSONF return header and status with body
+  static async JSONF(
+    body: any,
+    header: Record<string, string | null> = {},
+    status?: number,
+  ) {
+    return new Response(JSON.stringify(body), {
+      status: status || 200,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        ...header,
+      },
+    });
+  }
+}
+```
+
+
 
 ## Router
 
@@ -73,12 +116,13 @@ It have Guard and a Router Config file
 
 ## Config file
 
-GET POST AND OTHER ARE SEPRATED. For Netested child can use.
-
+First Check little simple route
 ```ts
-import { response } from "../../repo/response.ts";
-import { compile_route } from "../../repo/router.ts";
-import { _Routes } from "../../repo/Type.ts";
+import {
+  compile_routess,
+  response,
+  Router,
+} from "https://deno.land/x/the@0.0.0.3/mod.ts";
 export const _routes: _Routes = [
   {
     path: "/text",
@@ -88,21 +132,52 @@ export const _routes: _Routes = [
         handler: () => response.JSONF("GET"),
       },
       {
-        path: "/",
         method:"POST",
         handler: () => response.JSONF("POST"),
       }];
-  },
-  { path: "/login", method: "GET", handler: AuthController.Status },
-  { path: "/login", method: "POST", handler: AuthController.Login },
-  { path: "/logout", method: "GET", handler: AuthController.Login },
-  { path: "/register", method: "POST", handler: AuthController.Register },
+  }
 ]
 ```
 
-## Guard
+## Default
 
-### Guard are async function
+Method default is "GET" and path is "".
+So if you leave it blank you should know what you will get.
+
+## Other Parameters
+
+For Netested child / group / crud can use. 
+
+For Permission Guard , roles and islogin can used
+### Handler
+We have two type of handler first for restrictive route and secound for public. with params
+```ts
+// raw request passto handler
+export type CallbackHandler = (
+  request: Request,
+  params: any[],
+) => Promise<Response>;
+// Session pass to handler
+export type CallbackHandlerLogin = (
+  session: Session,
+  params: any[]
+) => Promise<Response>;
+```
+
+### Islogin
+***islogin*** default is ***false***
+if your route is login protected you should put
+```ts
+  { path: "/login", handler: AuthController.Status, islogin: true },
+  { path: "/login", method: "POST", handler: AuthController.Login },
+  { path: "/logout", method: "GET", handler: AuthController.Logout, islogin: true },
+  { path: "/register", method: "POST", handler: AuthController.Register },
+```
+when islogin is true we first check for cookie and if it is in session pass to handler. if not ***Error 401***
+
+### Guard
+You need to add Islogin to guard work.
+#### Guard are async function
 
 if there is string it will return string as error 403.
 
@@ -122,10 +197,11 @@ export const AuthGuard = async (): Promise<false | string> => {
 
 ```ts
 import { response } from "../../repo/response.ts";
-import { compile_route } from "../../repo/router.ts";
+import { compile_routes } from "../../repo/router.ts";
 import { _Routes } from "../../repo/Type.ts";
 export const _routes: _Routes = [
   {
+    islogin: true,
     path: "/login",
     method: "GET",
     handler: AuthController.Status,
@@ -133,6 +209,23 @@ export const _routes: _Routes = [
   },
 ];
 ```
+### Role function
+islogin need to true to function
+
+```ts
+  {
+    islogin: true,
+    path: "/login",
+    roles:['manager'],
+    child:[{
+      roles:['isuper'],
+      path:'/roles',
+      handler: AuthController.Status
+    }]
+    guard: [AuthGuard],
+  }
+```
+## Group
 
 ### We can create a Group for curd
 
@@ -161,14 +254,59 @@ const user = [
 
 ### Shorthand for crud.
 
+Crud has it meaning here is 
+```bash
+['c','r','u','d','all','where','upsert'] 
+```
+c for create
+r for read
+u for update
+d for delete
+all for read all
+where for read where
+upsert is add in bulk
+
 ```ts
-const user = { path: "/user", guard: [AuthGuard], crud: UserController };
+const user = { 
+  path: "/user", 
+  guard: [AuthGuard], 
+  class:UserController, 
+  crud: ['c','r','u','d','all','where','upsert'] 
+  };
 ```
 
-### It compile with compile_route()
+it is usuall work like 
+```ts
+    {
+      GET: [
+        ...user.crud.includes("all") &&
+            [{ path: "", handler: user.class.all }] || [],
+        ...user.crud.includes("r") &&
+            [{ path: "/.+", handler: user.class.show }] || [],
+      ],
+      POST: [
+        ...user.crud.includes("c") &&
+            [{ path: "", handler: user.class.store }] || [],
+        ...user.crud.includes("u") &&
+            [{ path: "/.+", handler: user.class.update }] || [],
+      ],
+      PATCH: [
+        ...user.crud.includes("upsert") &&
+            [{ path: "", handler: user.class.upsert }] || [],
+      ],
+      WHERE: [
+        ...user.crud.includes("where") &&
+            [{ path: "", handler: user.class.where }] || [],
+      ],
+      ...user.crud.includes("d") &&
+          { DELETE: [{ path: "/.+", handler: user.class.delete }] } || {},
+    },
+```
+Yes i made sin to create new Method where
+### It compile with compile_routes()
 
 ```ts
-export const routes = compile_route(_routes);
+export const routes = compile_routes(_routes);
 ```
 
 #### So basically it is record
@@ -180,5 +318,5 @@ export type Routes = Record<string, Route[]>;
 Router/Framework Flow
 
 <!-- ![deno router](https://user-images.githubusercontent.com/19248561/214020858-bc7aa3a6-6e12-42c7-92f1-4e5bd03e582c.svg) -->
-![deno router transparent](https://user-images.githubusercontent.com/19248561/214021159-d37cc8d8-879e-45b4-841d-b6ed7727bad4.svg)
 
+![deno router transparent](https://user-images.githubusercontent.com/19248561/214021159-d37cc8d8-879e-45b4-841d-b6ed7727bad4.svg)
