@@ -26,7 +26,7 @@ Requests/sec:  17402.96
 Transfer/sec:      4.65MB
 ```
 
-Usually 33%++ faster then Oak
+Usually 33%++ faster then Oakisuper
 
 Let See Example
 
@@ -320,4 +320,5 @@ Router/Framework Flow
 <!-- ![deno router](https://user-images.githubusercontent.com/19248561/214020858-bc7aa3a6-6e12-42c7-92f1-4e5bd03e582c.svg) -->
 
 <!-- ![deno router transparent](https://user-images.githubusercontent.com/19248561/214021159-d37cc8d8-879e-45b4-841d-b6ed7727bad4.svg) -->
-![deno router border excalidraw](https://user-images.githubusercontent.com/19248561/214041513-40623dfd-d41d-4b08-a18a-e68bddfc9133.svg)
+<!-- ![deno router b![deno router excalidraw](https://user-images.githubusercontent.com/19248561/214042234-115ed5ce-4be8-40d1-b653-25bb9dc68861.svg)
+order excalidraw](https://user-images.githubusercontent.com/19248561/214041513-40623dfd-d41d-4b08-a18a-e68bddfc9133.svg) -->
