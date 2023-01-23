@@ -88,7 +88,8 @@ function compile_route(route: Route_Group_with): Routes | undefined {
       route.roles,
       route.guard,
     );
-  } else if (route.handler) {
+  }
+  if (route.handler) {
     const x: Routes = {};
     if (!route.method) {
       route.method = "GET";
@@ -109,7 +110,8 @@ function compile_route(route: Route_Group_with): Routes | undefined {
       ],
     ];
     return x;
-  } else if (route.child) {
+  }
+  if (route.child) {
     return child_route(
       route.child,
       route.path,
@@ -117,7 +119,8 @@ function compile_route(route: Route_Group_with): Routes | undefined {
       route.roles,
       route.guard,
     );
-  } else if (route.crud) {
+  }
+  if (route.crud) {
     return crud(
       route.crud,
       route.path,
