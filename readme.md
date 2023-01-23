@@ -318,3 +318,67 @@ export type Routes = Record<string, Route[]>;
 Router/Framework Flow
 
 ![deno router excalidraw](https://user-images.githubusercontent.com/19248561/214042388-2bd5a873-9319-4cf5-8456-583a5148a230.svg)
+
+
+## Model and update
+
+
+Documentation Update Soon Example as below
+
+Model
+```ts
+import { Model } from '../../repo/Model.ts';
+import { relation } from '../../repo/type.ts';
+import { Account_attribute$ } from './Account_attribute.ts';
+import { Account$ } from './Account.ts';
+
+class Standard extends Model {
+  name = 'account_attribute_value';
+  table = 'account_attribute_values';
+  nullable: string[] = ["id"];
+  fillable: string[] = ['name','enable','account_attribute_id','account_id'];
+  model: string[] = ["name","enable","id","created_at","updated_at","account_attribute_id","account_id"];
+  relationship:  Record<string,  relation>  = {'account_attribute':{'table':'account_attributes','name':'account_attribute_id','key':'id','callback':()=>Account_attribute$},'account':{'table':'accounts','name':'account_id','key':'id','callback':()=>Account$}};
+}
+export const Account_attribute_value$: Standard = new Standard().set('account_attribute_values');
+```
+
+Controller
+```ts
+import { response } from "../../../repo/response.ts";
+import { Session } from "../../../repo/Session.ts";
+import { Account_attribute_value$ } from "../../Model/Account_attribute_value.ts";
+export class SuperAccount_attribute_valueController {
+   static async all(session: Session){
+      const account_attribute_value = await Account_attribute_value$.all().Item;
+      return response.JSON({ account_attribute_value }, session);
+   }
+   static async where(session: Session) {
+      const req = await Account_attribute_value$.where(await session.req.json()).Item;
+      return response.JSON({ req }, session);
+   }
+   static async show(session: Session, param: string[]) {
+      const req= await Account_attribute_value$.find(param[0].toString()).Item;
+      return response.JSON({req}, session);
+   }
+   static async store(session: Session){
+      const account_attribute_value = await Account_attribute_value$.create([await session.req.json()]);
+      return response.JSON({ account_attribute_value }, session);
+   }
+   static async update(session: Session, param: string[]) {
+      const account_attribute_value = await Account_attribute_value$.update(
+      [{ id: [param[0]] }],
+      await session.req.json(),
+      );
+      return response.JSON({ account_attribute_value }, session);
+   }
+   static async upsert(session: Session){
+      const account_attribute_value = await Account_attribute_value$.create(await session.req.json());
+      return response.JSON({ account_attribute_value }, session);
+   }
+   static async delete(session: Session, param: string[]) {
+      const account_attribute_value = await Account_attribute_value$.del([{ col: "id", value: [param[0]] }]);
+      return response.JSON({ account_attribute_value }, session);
+   }
+}
+```
