@@ -3,8 +3,32 @@ import {
   deleteCookie,
   getCookies,
   setCookie,
-} from "https://deno.land/std@0.170.0/http/cookie.ts";
-import type { Active_role, Role, User } from "./type.ts";
+} from "https://deno.land/std@0.173.0/http/cookie.ts";
+interface Active_role {
+  updated_at: Date,
+  user_id: number,
+  role_id: number
+}
+interface Role {
+  name: string,
+  enable: number,
+  id: number,
+  created_at: Date,
+  updated_at: Date
+}
+interface User {
+  name: string,
+  email: string,
+  phone: string | null,
+  google_id: string | null,
+  facebook_id: string | null,
+  password: string | null,
+  enable: number,
+  id: number,
+  created_at: Date,
+  updated_at: Date
+}
+import { Login } from "./type.ts";
 interface LoginSession {
   session_id: string;
   name: string;
@@ -20,28 +44,35 @@ let sessions: LoginSession[] = [];
 const sessionCookie = (
   session_id: string,
   date: Date,
-  domain: string
+  domain: string,
 ): Cookie => {
   return {
     name: "PHPSESSID",
     value: session_id,
     httpOnly: true,
     path: "/",
-    domain: domain,
+    domain: "." + domain,
     sameSite: "Strict",
+    secure: true,
     expires: date,
   };
 };
-class S {
+export class Session {
   Session!: string;
   expirein = 30;
   time: Date;
-  constructor(public req: Request) {
-    const cookie = getCookies(req.headers);
+  ActiveLoginSession: LoginSession | undefined;
+  domain: string;
+  Login!: Login;
+  constructor(public req: Request, public cookie?: Record<string, string>) {
+    this.domain = req.headers.get("host") || "";
     this.time = new Date();
     this.expire();
-    if (cookie.PHPSESSID) {
-      this.Session = cookie.PHPSESSID;
+    if (this.cookie) {
+      this.Session = this.cookie.PHPSESSID;
+      this.ActiveLoginSession = sessions.find((i) =>
+        i.session_id == this.Session
+      );
     }
   }
   expireSet(miniutes: number) {
@@ -81,7 +112,7 @@ class S {
   }
   SessionRoles(Role: Role[], Active_Role: Active_role[]) {
     return Role.filter((i) => Active_Role.filter((a) => a.role_id == i.id)).map(
-      (i) => i.name
+      (i) => i.name,
     );
   }
   getSessionRoles(session_id: string) {
@@ -103,32 +134,38 @@ class S {
     };
   }
 
-  returnCookie() {
+  returnCookie(){
     const headers = new Headers();
-    setCookie(
-      headers,
-      sessionCookie(this.Session, this.time, this.req.headers.get("host") || "")
-    );
-    return {
-      "set-cookie": headers.get("set-cookie"),
-    };
+    setCookie(headers, sessionCookie(this.Session, this.time, this.domain));
+    const cookie = headers.get("set-cookie");
+    if (cookie != null) {
+      return {
+        "set-cookie":cookie,
+      };
+    }
   }
-
-  overwriteSession() {}
+  reactiveSession() {
+    sessions = sessions.filter((i) => i.session_id != this.Session);
+    if (this.ActiveLoginSession) {
+      this.Session = crypto.randomUUID();
+      sessions = [...sessions, {
+        ...this.ActiveLoginSession,
+        ...{ session_id: this.Session },
+      }];
+    }
+    return this;
+  }
   getSession() {}
-  getLogin(): Login | false {
+  setLogin() {
     const p = sessions.find((i) => i.session_id == this.Session);
     if (p) {
-      return { name: p?.name, email: p?.email, id: p?.id, roles: p?.roles };
+      this.Login = {
+        name: p?.name,
+        email: p?.email,
+        id: p?.id,
+        roles: p?.roles,
+      };
     }
-    return false;
+    return this;
   }
-}
-
-export const Session = (req: Request) => new S(req);
-export interface Login {
-  name: string;
-  email: string;
-  id: number;
-  roles: string[];
 }

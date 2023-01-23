@@ -1,64 +1,67 @@
+import { Model } from "./Model.ts";
+import { Session } from "./Session.ts";
+
 export type CallbackHandler = (
   request: Request,
+  params: any[],
+) => Promise<Response>;
+
+export type CallbackHandlerLogin = (
+  session: Session,
   params: any[]
 ) => Promise<Response>;
 
-export type guard = () => Promise<false | string>;
+export function isCallbackHandler(
+  fun: CallbackHandler | CallbackHandlerLogin,
+): fun is CallbackHandler {
+  return (fun as CallbackHandler) !== undefined;
+}
+export function isCallbackHandlerLogin(
+  fun: CallbackHandler | CallbackHandlerLogin,
+): fun is CallbackHandlerLogin {
+  return (fun as CallbackHandlerLogin) !== undefined;
+}
+
+export type guard = (req: Request) => Promise<false | string>;
 export type Routes = Record<string, Route[]>;
 export type TheData = Record<string, string>;
 
 export interface Route {
+  handler: CallbackHandler | CallbackHandlerLogin;
   path: string;
-  handler: CallbackHandler;
+  method?: string;
+  islogin?: boolean;
+  roles?: string[];
   guard?: guard[];
 }
 
-export interface Where {
-  [key: string]: string[] | string;
+export interface Login {
+  name: string;
+  email: string;
+  id: number;
+  roles: string[];
 }
-
+export interface Where {
+  [key: string]: string[] | string | number | number[];
+}
+export interface relation {
+  table: string;
+  name: string;
+  key: string;
+  callback: () => Model;
+  relation?: relation;
+}
 export type _Routes = Route_Group_with[];
 
 export interface Route_Group_with {
-  path: string;
+  path?: string;
+  islogin?: boolean;
   guard?: guard[];
   method?: string;
-  handler?: CallbackHandler;
+  roles?: string[];
+  handler?: CallbackHandler | CallbackHandlerLogin;
   crud?: any;
   child?: Route_Group_with[];
   group?: Record<string, Route_Group_with[]>;
 }
 
-
-export interface Route_Group_with {
-  path: string;
-  guard?: guard[];
-  method?: string;
-  handler?: CallbackHandler;
-  controller?: any;
-  group?: Record<string, Route_Group_with[]>;
-}
-export interface Active_role {
-  updated_at: Date;
-  user_id: number;
-  role_id: number;
-}
-export interface User {
-  name: string;
-  email: string;
-  phone: string | null;
-  google_id: string | null;
-  facebook_id: string | null;
-  password: string | null;
-  enable: number;
-  id: number;
-  created_at: Date;
-  updated_at: Date;
-}
-export interface Role {
-  name: string;
-  enable: number;
-  id: number;
-  created_at: Date;
-  updated_at: Date;
-}

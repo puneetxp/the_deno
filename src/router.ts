@@ -1,14 +1,17 @@
-import type {
-  CallbackHandler,
-  guard,
-  Routes,
+import {
   _Routes,
+  guard,
+  isCallbackHandler,
+  isCallbackHandlerLogin,
   Route,
   Route_Group_with,
+  Routes,
 } from "./type.ts";
 import { response } from "./response.ts";
-import "https://deno.land/std@0.170.0/dotenv/load.ts";
-import { mergeObject } from "./thefun.ts";
+import "https://deno.land/std@0.173.0/dotenv/load.ts";
+import { intersect, mergeObject } from "./thefun.ts";
+import { Session } from "./Session.ts";
+import { getCookies } from "https://deno.land/std@0.173.0/http/cookie.ts";
 
 //this is moduler and almost same performce
 export class Router {
@@ -16,167 +19,220 @@ export class Router {
   async route(req: Request): Promise<Response> {
     const relativepath = req.url.replace(
       new RegExp(".*" + req.headers.get("host")),
-      ""
+      "",
     );
     const pathparam = relativepath.split("/");
     const r = this.routes_list[req.method].find((i) => {
       return (
         i.path.split("/").length == relativepath.split("/").length &&
-        relativepath.match(`${i.path.replaceAll("/", "/")}$`)
+        relativepath.match(`${i.path}$`)
       );
     });
     if (r) {
-      if (r.guard) {
-        for (const element of r.guard) {
-          const E403 = await element();
-          if (E403) {
-            return response.JSON403({ E403 });
-          }
-        }
-      }
       const params: any[] = [];
       r.path.split("/").forEach((e, key) => {
         if (e == ".+") {
           params.push(pathparam[key]);
         }
       });
-      return await r.handler(req, params);
+      if (r.islogin) {
+        const cookie = getCookies(req.headers);
+        if (cookie.PHPSESSID) {
+          const active_session = new Session(req, cookie).setLogin();
+          if (active_session.Login) {
+            if (r.guard) {
+              for (const element of r.guard) {
+                const E403 = await element(req);
+                if (E403) {
+                  return response.JSON(E403, active_session, 403);
+                }
+              }
+            }
+            if (r.roles) {
+              if (intersect(active_session.Login.roles, r.roles) == false) {
+                return response.JSON(
+                  "Your Role is Limited",
+                  active_session,
+                  403,
+                );
+              }
+            }
+            if (isCallbackHandlerLogin(r.handler)) {
+              return await r.handler(active_session, params);
+            }
+          }
+        }
+        return await response.JSON("Please Login First", undefined, 401);
+      } else {
+        if (isCallbackHandler(r.handler)) {
+          return await r.handler(req, params);
+        }
+      }
     }
-    return await response.JSON404("Not Found");
+    return await response.JSON("Not Found");
   }
 }
+export function compile_routes(route_pre: _Routes): Routes {
+  let route: Routes = {};
+  for (const e of route_pre) {
+    mergeObject(route, compile_route(e) || {});
+  }
+  return route_path_clean(route);
+}
+function compile_route(route: Route_Group_with): Routes | undefined {
+  if (route.group) {
+    return compile_group(
+      route.group,
+      route.path,
+      route.islogin,
+      route.roles,
+      route.guard,
+    );
+  } else if (route.handler) {
+    const x: Routes = {};
+    if (!route.method) {
+      route.method = "GET";
+    }
+    if (!x[route.method]) {
+      x[route.method] = [];
+    }
+    x[route.method] = [
+      ...x[route.method],
+      ...[
+        {
+          path: route.path || "",
+          handler: route.handler,
+          ...(route.guard && { guard: route.guard }),
+          ...(route.roles && { roles: route.roles }),
+          ...(route.islogin && { islogin: route.islogin }),
+        },
+      ],
+    ];
+    return x;
+  } else if (route.child) {
+    return child_route(
+      route.child,
+      route.path,
+      route.islogin,
+      route.roles,
+      route.guard,
+    );
+  } else if (route.crud) {
+    return crud(
+      route.crud,
+      route.path,
+      route.islogin,
+      route.roles,
+      route.guard,
+    );
+  }
+}
+function crud(
+  crud: any,
+  path?: string,
+  islogin?: boolean,
+  roles?: string[],
+  guard?: guard[],
+) {
+  return compile_group(
+    {
+      GET: [
+        ...crud.crud.includes("all") &&
+            [{ path: "", handler: crud.class.all }] || [],
+        ...crud.crud.includes("r") &&
+            [{ path: "/.+", handler: crud.class.show }] || [],
+      ],
+      POST: [
+        ...crud.crud.includes("c") &&
+            [{ path: "", handler: crud.class.store }] || [],
+        ...crud.crud.includes("u") &&
+            [{ path: "/.+", handler: crud.class.update }] || [],
+      ],
+      PATCH: [
+        ...crud.crud.includes("upsert") &&
+            [{ path: "", handler: crud.class.upsert }] || [],
+      ],
+      WHERE: [
+        ...crud.crud.includes("where") &&
+            [{ path: "", handler: crud.class.where }] || [],
+      ],
+      ...crud.crud.includes("d") &&
+          { DELETE: [{ path: "/.+", handler: crud.class.delete }] } || {},
+    },
+    path,
+    islogin,
+    roles,
+    guard,
+  );
+}
+function route_path_clean(route: Routes) {
+  for (const [key, value] of Object.entries(route)) {
+    route[key].forEach((i, index) => {
+      if (route[key][index].path != "/") {
+        route[key][index].path = route[key][index].path.replace(
+          new RegExp("\/$"),
+          "",
+        ).replace("", "/").replace("//", "/").replace("//", "/");
+      }
+    });
+  }
+  return route;
+}
 function child_route(
-  path: string,
   route: Route_Group_with[],
-  guard: guard[] = []
+  path?: string,
+  islogin?: boolean,
+  roles?: string[],
+  guard?: guard[],
 ): Routes {
   let x: Routes = {};
   for (const e of route) {
-    if (e.group) {
-      x = mergeObject(x, compile_group(e.group, path));
-    } else if (e.child) {
-      if (e.guard) {
-        x = mergeObject(
-          x,
-          child_route(path + e.path, e.child, [...guard, ...e.guard])
-        );
-      } else {
-        x = mergeObject(x, child_route(path + e.path, e.child, guard));
-      }
-    } else {
-      e.path = path + e.path;
-      if (e.handler && e.method) {
-        if (!e.method) {
-          e.method = "GET";
-        }
-        if (e.guard) {
-          x[e.method] = [
-            ...(x[e.method] || []),
-            {
-              path: e.path,
-              handler: e.handler,
-              guard: e.guard,
-            },
-          ];
-        } else {
-          x[e.method] = [
-            ...(x[e.method] || []),
-            { path: e.path, handler: e.handler },
-          ];
-        }
-      }
-    }
+    mergeObject(
+      x,
+      compile_route({
+        path: (path || "") + (e.path || ""),
+        method: e.method || "GET",
+        handler: e.handler,
+        ...(guard
+          ? (e.guard ? { guard: [...guard, ...e.guard] } : { guard })
+          : (e.guard ? { guard: [...e.guard] } : undefined)),
+        ...(roles
+          ? (e.roles ? { roles: [...roles, ...e.roles] } : { roles })
+          : (e.roles ? { roles: [...e.roles] } : undefined)),
+        ...((e.islogin && { islogin: e.islogin }) ||
+          (islogin && { islogin })),
+        crud: e.crud,
+        child: e.child,
+        group: e.group,
+      }) || {},
+    );
   }
   return x;
 }
-function route_to_method(
-  path: string,
-  handler: CallbackHandler,
-  guard?: guard[]
-): Route {
-  if (guard) {
-    return { path: path, handler: handler, guard: guard };
-  }
-  return { path: path, handler: handler };
-}
-export function compile_route(route_pre: _Routes) {
-  let route: Routes = {};
-  for (const e of route_pre) {
-    if (e.group) {
-      route = mergeObject(route, compile_group(e.group, e.path, e.guard));
-    } else if (e.handler) {
-      if (!e.method) {
-        e.method = "GET";
-      }
-      if (e.handler) {
-        if (!route[e.method]) {
-          route[e.method] = [];
-        }
-        route[e.method] = [
-          ...route[e.method],
-          ...[route_to_method(e.path, e.handler, e.guard)],
-        ];
-      }
-    } else if (e.child) {
-      if (e.guard) {
-        route = mergeObject(route, child_route(e.path, e.child, e.guard));
-      } else {
-        route = mergeObject(route, child_route(e.path, e.child));
-      }
-    } else if (e.crud) {
-      route = mergeObject(
-        route,
-        compile_group(
-          {
-            GET: [
-              { path: "", handler: e.crud.all },
-              { path: "/.+", handler: e.crud.show },
-            ],
-            POST: [
-              { path: "", handler: e.crud.store },
-              { path: "/.+", handler: e.crud.update },
-            ],
-            PATCH: [{ path: "", handler: e.crud.upsert }],
-            DELETE: [{ path: "/.+", handler: e.crud.delete }],
-          },
-          e.path,
-          e.guard
-        )
-      );
-    }
-  }
-  console.log(route);
-  return route;
-}
 function compile_group(
   group: Record<string, Route_Group_with[]>,
-  path = "",
-  guard: guard[] = []
+  path?: string,
+  islogin?: boolean,
+  roles?: string[],
+  guard?: guard[],
 ) {
   const route: Routes = {};
   for (const [key, value] of Object.entries(group)) {
-    if (!route[key]) {
-      route[key] = [];
-    }
     for (const e of value) {
-      let x: any = {};
-      if (e.path) {
-        x.path = path + e.path;
-      } else {
-        x.path = path;
-      }
-
       if (e.handler) {
-        x.handler = e.handler;
+        route[key] = [...route[key] || [], {
+          path: path + (e.path || ""),
+          handler: e.handler,
+          ...(guard
+            ? (e.guard ? { guard: [...guard, ...e.guard] } : { guard })
+            : undefined),
+          ...(roles
+            ? (e.roles ? { roles: [...roles, ...e.roles] } : { roles })
+            : undefined),
+          ...((e.islogin && { islogin: e.islogin }) ||
+            (islogin && { islogin })),
+        }];
       }
-
-      if (e.guard) {
-        x.guard = [...guard, ...e.guard];
-      } else {
-        x.guard = [...guard];
-      }
-
-      route[key] = [...route[key], x];
     }
   }
   return route;
