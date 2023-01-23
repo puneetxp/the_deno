@@ -80,14 +80,15 @@ export function compile_routes(route_pre: _Routes): Routes {
   return route_path_clean(route);
 }
 function compile_route(route: Route_Group_with): Routes | undefined {
+  let routes: Routes ={};
   if (route.group) {
-    return compile_group(
+    mergeObject(routes, compile_group(
       route.group,
       route.path,
       route.islogin,
       route.roles,
       route.guard,
-    );
+    ));
   }
   if (route.handler) {
     const x: Routes = {};
@@ -112,23 +113,24 @@ function compile_route(route: Route_Group_with): Routes | undefined {
     return x;
   }
   if (route.child) {
-    return child_route(
+    mergeObject(routes,  child_route(
       route.child,
       route.path,
       route.islogin,
       route.roles,
       route.guard,
-    );
+    ));
   }
   if (route.crud) {
-    return crud(
+    mergeObject(routes,  crud(
       route.crud,
       route.path,
       route.islogin,
       route.roles,
       route.guard,
-    );
+    ));
   }
+  return routes;
 }
 function crud(
   crud: any,
