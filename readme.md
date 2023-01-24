@@ -336,7 +336,9 @@ export type Routes = Record<string, Route[]>;
 
 Router/Framework Flow
 
-![deno router excalidraw](https://user-images.githubusercontent.com/19248561/214042388-2bd5a873-9319-4cf5-8456-583a5148a230.svg)
+
+![deno router green](https://user-images.githubusercontent.com/19248561/214393928-a341f0ef-7647-43a7-850f-354a06aa1aa7.svg)
+
 
 
 ## Model and update
