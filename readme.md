@@ -32,7 +32,7 @@ Let See Example
 
 ```ts
 import {
-  compile_routess,
+  compile_routes,
   response,
   Router,
 } from "https://deno.land/x/the@0.0.0.3/mod.ts";
@@ -45,7 +45,7 @@ const _routes = [{
   method: "POST",
   handler: () => response.JSON("s"),
 }];
-const routes = compile_routess(_route);
+const routes = compile_routes(_route);
 serve(
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
@@ -57,6 +57,25 @@ serve(
 If there is Method not present it get default to GET. If path is not there it
 will assume it is empty.
 
+## Data pass
+
+It is hardcore just ***/.+*** where you need you get in pramas
+#### in route
+```ts
+const _routes = [{
+  path: "/.+",
+  handler: () => handler,
+}];
+
+```
+#### in handler
+
+You get params as array and you can get by ***params[0]*** , ***parmas[1]***
+```ts
+handler(req:Request, params :any[]){
+  params[0];
+}
+```
 ## Response
 
 Every Controller should return new Response.
@@ -119,7 +138,7 @@ It have Guard and a Router Config file
 First Check little simple route
 ```ts
 import {
-  compile_routess,
+  compile_routes,
   response,
   Router,
 } from "https://deno.land/x/the@0.0.0.3/mod.ts";
