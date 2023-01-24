@@ -57,7 +57,6 @@ export class database {
       });
       this.query += insert.join(",");
     }
-    console.log(this.query);
     return this;
   }
 
