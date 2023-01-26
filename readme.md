@@ -1,36 +1,3 @@
-## Start
-In Databse Side there are still many issue but on the auth session and router side of thing this is goood.
-On Our Framework
-
-Mysql with model are not good avoid them.
-
-Routing session and auth are good but testing is still lacking we are in still alpha
-
-```bash
-Running 10s test @ http://localhost:3333
-  2 threads and 10 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   397.97us  497.73us   9.72ms   97.06%
-    Req/Sec    14.48k     1.00k   16.18k    78.50%
-  288023 requests in 10.00s, 39.00MB read
-Requests/sec:  28800.79
-Transfer/sec:      3.90MB
-```
-
-When Oak
-
-```bash
-Running 10s test @ http://localhost:8080/
-  2 threads and 10 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   633.04us    0.98ms  31.01ms   97.65%
-    Req/Sec     8.79k     1.34k   14.73k    91.54%
-  175770 requests in 10.10s, 46.94MB read
-Requests/sec:  17402.96
-Transfer/sec:      4.65MB
-```
-
-Usually 33%++ faster then Oak
 
 Let See Example
 
@@ -39,7 +6,7 @@ import {
   compile_routes,
   response,
   Router,
-} from "https://deno.land/x/the@0.0.0.3/mod.ts";
+} from "https://deno.land/x/the@0.0.0.4.2/mod.ts";
 import { serve } from "https://deno.land/std@0.173.0/http/server.ts";
 const _routes = [{
   path: "/checlk",
@@ -145,7 +112,7 @@ import {
   compile_routes,
   response,
   Router,
-} from "https://deno.land/x/the@0.0.0.3/mod.ts";
+} from "https://deno.land/x/the@0.0.0.4.2/mod.ts";
 export const _routes: _Routes = [
   {
     path: "/text",
@@ -407,3 +374,36 @@ export class SuperAccount_attribute_valueController {
    }
 }
 ```
+## benchmark
+
+This Framework can little hard but benefit in speed will unreal.
+
+On Our Framework
+
+Routing session and auth are good but testing is still lacking we are in still alpha
+
+```bash
+Running 10s test @ http://localhost:3333
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   397.97us  497.73us   9.72ms   97.06%
+    Req/Sec    14.48k     1.00k   16.18k    78.50%
+  288023 requests in 10.00s, 39.00MB read
+Requests/sec:  28800.79
+Transfer/sec:      3.90MB
+```
+
+When Oak
+
+```bash
+Running 10s test @ http://localhost:8080/
+  2 threads and 10 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   633.04us    0.98ms  31.01ms   97.65%
+    Req/Sec     8.79k     1.34k   14.73k    91.54%
+  175770 requests in 10.10s, 46.94MB read
+Requests/sec:  17402.96
+Transfer/sec:      4.65MB
+```
+
+Usually 33%++ faster then Oak

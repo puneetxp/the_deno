@@ -24,32 +24,36 @@ export class Model {
     return this.DB.where({}).get() || [];
   }
   where(where: TheData) {
-    this.Item = this.DB.where(this.clean([where])[0]).get() || [];
+    this.Item = this.DB.where(this.clean(where)).get() || [];
     return this;
   }
   async create(data: TheData[]) {
-    const create = await this.DB.create(this.clean(data));
+    const create = await this.DB.create(this.cleans(data));
     return await create.lastinsertid();
   }
   del(where: TheData) {
-    return this.DB.delete(this.clean([where])[0]);
+    return this.DB.delete(this.clean(where));
   }
   with(Model: relation[]) {
   }
   update(where: TheData, data: TheData) {
-    return this.DB.update(where, data);
+    return this.DB.update(this.clean(where), this.clean(data));
   }
   upsert(where: TheData[]) {
     return this.DB.upsert(where);
   }
-  clean(data: TheData[]) {
+  cleans(data: TheData[]) {
     const _where: TheData[] = [];
     data.forEach((w, index) => {
-      _where[index] = {};
-      for (const property of this.model) {
-        w[property] && (_where[index][property] = w[property]);
-      }
+      _where.push(this.clean(w));
     });
+    return _where;
+  }
+  clean(data: TheData) {
+    const _where: TheData = {};
+    for (const property of this.model) {
+      data[property] && (_where[property] = data[property]);
+    }
     return _where;
   }
 }
