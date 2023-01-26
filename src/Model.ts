@@ -27,9 +27,11 @@ export class Model {
     this.Item = this.DB.where(this.clean(where)).get() || [];
     return this;
   }
-  async create(data: TheData[]) {
-    const create = await this.DB.create(this.cleans(data));
-    return await create.lastinsertid();
+  create(data: TheData[]) {
+    return this.DB.create(this.cleans(data));
+  }
+  async createget(data: TheData[]) {
+    return (await this.DB.create(this.cleans(data))).lastinsertid();
   }
   del(where: TheData) {
     return this.DB.delete(this.clean(where));
@@ -44,7 +46,7 @@ export class Model {
   }
   cleans(data: TheData[]) {
     const _where: TheData[] = [];
-    data.forEach((w, index) => {
+    data.forEach((w) => {
       _where.push(this.clean(w));
     });
     return _where;

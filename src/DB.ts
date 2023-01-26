@@ -147,8 +147,12 @@ export class database {
     this.query += " LIMIT " + limit;
     return this;
   }
-  async lastinsertid() {
-    return await this.find({ id: this.rows.insertId });
+  lastinsertid() {
+    const value = [];
+    for (let i = 0; i < this.rows.affectedRows; i++) {
+      value.push(this.rows.insertId - i);
+    }
+    return this.where({ id: value }).get();
   }
 }
 
