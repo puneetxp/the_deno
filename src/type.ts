@@ -8,7 +8,7 @@ export type CallbackHandler = (
 
 export type CallbackHandlerLogin = (
   session: Session,
-  params: any[]
+  params: any[],
 ) => Promise<Response>;
 
 export function isCallbackHandler(
@@ -24,7 +24,7 @@ export function isCallbackHandlerLogin(
 
 export type guard = (req: Request) => Promise<false | string>;
 export type Routes = Record<string, Route[]>;
-export type TheData = Record<string, string>;
+export type TheData = Record<string, number | string | string[] | number[]>;
 
 export interface Route {
   handler: CallbackHandler | CallbackHandlerLogin;
@@ -41,9 +41,7 @@ export interface Login {
   id: number;
   roles: string[];
 }
-export interface Where {
-  [key: string]: string[] | string | number | number[];
-}
+
 export interface relation {
   table: string;
   name: string;
@@ -64,4 +62,3 @@ export interface Route_Group_with {
   child?: Route_Group_with[];
   group?: Record<string, Route_Group_with[]>;
 }
-
