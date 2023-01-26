@@ -14,11 +14,11 @@ export class Model {
   Item!: Promise<any>;
   set(table: string) {
     this.table = table;
-    this.DB = DB(table);
+    this.DB = DB(table, this.fillable);
     return this;
   }
   find(value: string | number, key = "id") {
-    return this.DB.find({ [key]: value })
+    return this.DB.find({ [key]: value });
   }
   all() {
     return this.DB.where({}).get() || [];
@@ -38,6 +38,9 @@ export class Model {
   }
   update(where: TheData, data: TheData) {
     return this.DB.update(where, data);
+  }
+  upsert(where: TheData[]) {
+    return this.DB.upsert(where);
   }
   clean(data: TheData[]) {
     const _where: TheData[] = [];

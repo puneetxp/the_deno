@@ -16,7 +16,7 @@ export class database {
   public rows: any;
   constructor(
     protected table: string,
-    protected data: [] = [],
+    protected fillable: string[] = [],
     protected col: string = "*",
   ) {}
 
@@ -44,6 +44,9 @@ export class database {
     this.placeholder = [];
     return this.DelSet().WhereQ(where);
   }
+  upsert(data: TheData[]) {
+    return this.InSet().UpsertQ(data).get();
+  }
   async execute() {
     [this.rows, this.field] = await connection.execute(
       this.query,
@@ -58,6 +61,18 @@ export class database {
     }
     return this.rows;
   }
+
+  UpsertQ(data: TheData[]) {
+    this.placeholder = [];
+    this.InsertQ(data);
+    this.query += " on duplicate key update ";
+    Object.keys(data[0]).forEach((i) =>
+      this.fillable.includes(i) &&
+      (this.query += "`" + i + "` = values(`" + i + "`)")
+    );
+    return this;
+  }
+
   InsertQ(data: TheData[]) {
     if (data.length > 0) {
       this.query += ` ( ${Object.keys(data[0]).join(",")} ) VALUES `;
@@ -137,7 +152,8 @@ export class database {
   }
 }
 
-export const DB = (table: string) => new database(table);
+export const DB = (table: string, fillable: string[], col?: string) =>
+  new database(table, fillable, col);
 function placeholder(i: number) {
   const r: string[] = [];
   for (let n = 0; n < i; n++) {
