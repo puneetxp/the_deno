@@ -1,6 +1,6 @@
 import "https://deno.land/std@0.173.0/dotenv/load.ts";
 import { database, DB } from "./DB.ts";
-import { relation, TheData, Where } from "./type.ts";
+import { relation, TheData } from "./type.ts";
 export class Model {
   protected name = "";
   protected table!: string;
@@ -9,6 +9,7 @@ export class Model {
   protected model: string[] = [];
   protected relationship: Record<string, relation> = {};
   protected data: TheData[] = [];
+  protected insertid!: number;
   protected DB!: database;
   Item!: Promise<any>;
   set(table: string) {
@@ -16,33 +17,36 @@ export class Model {
     this.DB = DB(table);
     return this;
   }
-  find(value: string, key = "id") {
-    this.Item = this.DB.find([{ col: key, value: [value] }]);
-    return this;
+  find(value: string | number, key = "id") {
+    return this.DB.find({ [key]: value })
   }
   all() {
-    this.Item = this.DB.where([]) || [];
+    return this.DB.where({}).get() || [];
+  }
+  where(where: TheData) {
+    this.Item = this.DB.where(this.clean([where])[0]).get() || [];
     return this;
   }
-  where(where: Where[]) {
-    this.Item = this.DB.where(where) || [];
-    return this;
+  async create(data: TheData[]) {
+    const create = await this.DB.create(this.clean(data));
+    return await create.lastinsertid();
   }
-  create(data: TheData[]) {
-    return this.DB.create(data);
-  }
-  del(where: Where[]) {
-    return this.DB.delete(where);
+  del(where: TheData) {
+    return this.DB.delete(this.clean([where])[0]);
   }
   with(Model: relation[]) {
   }
-  update(where: Where[], data: TheData[]) {
+  update(where: TheData, data: TheData) {
     return this.DB.update(where, data);
   }
-  filter(data: TheData[]) {
-    data.map((e) => {
-      Object.entries(e).filter(([key]) => this.fillable.includes(key));
+  clean(data: TheData[]) {
+    const _where: TheData[] = [];
+    data.forEach((w, index) => {
+      _where[index] = {};
+      for (const property of this.model) {
+        w[property] && (_where[index][property] = w[property]);
+      }
     });
-    return this;
+    return _where;
   }
 }

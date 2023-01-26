@@ -2,6 +2,10 @@
 In Databse Side there are still many issue but on the auth session and router side of thing this is goood.
 On Our Framework
 
+Mysql with model are not good avoid them.
+
+Routing session and auth are good but testing is still lacking we are in still alpha
+
 ```bash
 Running 10s test @ http://localhost:3333
   2 threads and 10 connections

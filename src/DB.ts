@@ -1,6 +1,6 @@
 import * as mysql2 from "https://deno.land/x/mysql2/mod.ts";
-import { TheData, Where } from "./type.ts";
-const DBConnection = mysql2.createPool({
+import { TheData } from "./type.ts";
+const connection = await mysql2.createConnection({
   host: Deno.env.get("DBHOST"),
   port: 3306,
   user: Deno.env.get("DBUSER"),
@@ -9,80 +9,101 @@ const DBConnection = mysql2.createPool({
   connectionLimit: 4,
 });
 export class database {
-  protected client = DBConnection;
   protected query = "";
-  protected rows: any;
   protected field: any;
+  protected param: string[] = [];
+  protected placeholder!: any[];
+  public rows: any;
   constructor(
     protected table: string,
     protected data: [] = [],
     protected col: string = "*",
   ) {}
 
-  async where(where: Where[]) {
-    await this.SelSet().WhereQ(where).execute();
-    return this.rows;
+  where(where: TheData) {
+    this.placeholder = [];
+    this.SelSet().WhereQ(where);
+    return this;
   }
 
-  async find(where: Where[], limit = 1) {
-    await this.SelSet().WhereQ(where).LimitQ(limit).execute();
-    return this.rows[0];
+  find(where: TheData, limit = 1) {
+    this.placeholder = [];
+    return this.SelSet().WhereQ(where).LimitQ(limit).get(0);
   }
 
-  async create(data: TheData[]) {
-    await this.InSet().InsertQ(data).execute();
-    return this.rows;
+  create(data: TheData[]) {
+    this.placeholder = [];
+    return this.InSet().InsertQ(data).execute();
   }
-
-  async update(where: Where[], data: TheData[]) {
-    await this.UpSet().UpdateQ(data).WhereQ(where).execute();
-    return this.rows;
+  update(where: TheData, data: TheData) {
+    this.placeholder = [];
+    this.UpSet().UpdateQ(data).WhereQ(where).execute();
+    return this;
   }
-
+  delete(where: TheData) {
+    this.placeholder = [];
+    return this.DelSet().WhereQ(where);
+  }
   async execute() {
-    [this.rows, this.field] = await this.client.execute(this.query);
+    [this.rows, this.field] = await connection.execute(
+      this.query,
+      this.placeholder,
+    );
+    return this;
   }
-
-  async delete(where: Where[]) {
-    await this.DelSet().WhereQ(where).execute();
+  async get(n?: number) {
+    await this.execute();
+    if (typeof n == "number") {
+      return await this.rows[0];
+    }
     return this.rows;
   }
-
   InsertQ(data: TheData[]) {
     if (data.length > 0) {
       this.query += ` ( ${Object.keys(data[0]).join(",")} ) VALUES `;
       const insert: any[] = [];
       data.forEach((i) => {
-        insert.push(`('${Object.values(i).join("','")}')`);
+        for (const [key, value] of Object.entries(i)) {
+          this.placeholder.push(value);
+        }
+        insert.push(`(${placeholder(Object.values(i).length).join(",")})`);
       });
       this.query += insert.join(",");
     }
     return this;
   }
 
-  UpdateQ(data: TheData[]) {
+  UpdateQ(data: TheData) {
     this.query = `UPDATE ${this.table} SET `;
     const set = [];
     for (const [key, value] of Object.entries(data)) {
-      set.push(`${key} = '${value}'`);
+      this.placeholder.push(value);
+      set.push(`${key} = (?)`);
     }
     this.query += set.join(" , ");
     return this;
   }
+
   SelectQ() {
     this.query = `SELECT ${this.col} FROM ${this.table}`;
     return this;
   }
 
-  WhereQ(where: Where[] | Where = []) {
-    if (Array.isArray(where)) {
-      this.query += ` WHERE`;
-      for (const property in where) {
-        const value = where[property];
-        this.query += ` ${property} IN ('${
-          Array.isArray(value) ? value.join("','") : value
-        }')`;
-      }
+  WhereQ(where: TheData) {
+    const wherearray: string[] = [];
+    for (const property in where) {
+      const value = where[property];
+      Array.isArray(value)
+        ? this.placeholder.push(...value)
+        : this.placeholder.push(value);
+      wherearray.push(
+        `${property} IN (${
+          Array.isArray(value) ? placeholder(value.length).join(",") : "?"
+        })`,
+      );
+    }
+    if (wherearray.length > 0) {
+      this.query += " WHERE " + wherearray.join(" AND ");
     }
     return this;
   }
@@ -111,10 +132,16 @@ export class database {
     this.query += " LIMIT " + limit;
     return this;
   }
-
-  first(any: any) {
-    return any[0];
+  async lastinsertid() {
+    return await this.find({ id: this.rows.insertId });
   }
 }
 
 export const DB = (table: string) => new database(table);
+function placeholder(i: number) {
+  const r: string[] = [];
+  for (let n = 0; n < i; n++) {
+    r.push("?");
+  }
+  return r;
+}
