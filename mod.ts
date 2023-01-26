@@ -1,3 +1,7 @@
+// Let Crush Everything in Performance
+
+// This Framework will be more meta then anything
+
 export * from "./src/hash.ts";
 export * from "./src/Model.ts";
 export * from "./src/response.ts";
