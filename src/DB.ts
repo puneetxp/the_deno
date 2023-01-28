@@ -1,6 +1,6 @@
 import * as mysql2 from "https://deno.land/x/mysql2/mod.ts";
 import { TheData } from "./type.ts";
-const connection = await mysql2.createConnection({
+const connection = mysql2.createPool({
   host: Deno.env.get("DBHOST"),
   port: 3306,
   user: Deno.env.get("DBUSER"),
