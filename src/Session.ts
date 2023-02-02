@@ -3,30 +3,30 @@ import {
   deleteCookie,
   getCookies,
   setCookie,
-} from "https://deno.land/std@0.173.0/http/cookie.ts";
+} from "https://deno.land/std@0.175.0/http/cookie.ts";
 interface Active_role {
-  updated_at: Date,
-  user_id: number,
-  role_id: number
+  updated_at: Date;
+  user_id: number;
+  role_id: number;
 }
 interface Role {
-  name: string,
-  enable: number,
-  id: number,
-  created_at: Date,
-  updated_at: Date
+  name: string;
+  enable: number;
+  id: number;
+  created_at: Date;
+  updated_at: Date;
 }
 interface User {
-  name: string,
-  email: string,
-  phone: string | null,
-  google_id: string | null,
-  facebook_id: string | null,
-  password: string | null,
-  enable: number,
-  id: number,
-  created_at: Date,
-  updated_at: Date
+  name: string;
+  email: string;
+  phone: string | null;
+  google_id: string | null;
+  facebook_id: string | null;
+  password: string | null;
+  enable: number;
+  id: number;
+  created_at: Date;
+  updated_at: Date;
 }
 import { Login } from "./type.ts";
 interface LoginSession {
@@ -70,9 +70,6 @@ export class Session {
     this.expire();
     if (this.cookie) {
       this.Session = this.cookie.PHPSESSID;
-      this.ActiveLoginSession = sessions.find((i) =>
-        i.session_id == this.Session
-      );
     }
   }
   expireSet(miniutes: number) {
@@ -99,13 +96,22 @@ export class Session {
       agent: this.req.headers.get("user-agent"),
     });
   }
-
-  validSession(session_id: string) {
-    return sessions.find((i) => {
-      i.session_id == session_id &&
+  validSessionIp() {
+    this.ActiveLoginSession = sessions.find((i) => {
+      i.expire > new Date() &&
+        i.session_id == this.Session &&
         i.ip == this.req.headers.get("x-forwarded-for") &&
         i.agent == this.req.headers.get("user-agent");
     });
+    return this;
+  }
+  validSession() {
+    this.ActiveLoginSession = sessions.find((i) => {
+      i.expire > new Date() &&
+        i.session_id == this.Session &&
+        i.agent == this.req.headers.get("user-agent");
+    });
+    return this;
   }
   expire() {
     this.time.setTime(this.time.getTime() + this.expirein * 60 * 1000);
@@ -134,36 +140,34 @@ export class Session {
     };
   }
 
-  returnCookie(){
+  returnCookie() {
     const headers = new Headers();
     setCookie(headers, sessionCookie(this.Session, this.time, this.domain));
     const cookie = headers.get("set-cookie");
     if (cookie != null) {
       return {
-        "set-cookie":cookie,
+        "set-cookie": cookie,
       };
     }
   }
   reactiveSession() {
-    sessions = sessions.filter((i) => i.session_id != this.Session);
-    if (this.ActiveLoginSession) {
-      this.Session = crypto.randomUUID();
-      sessions = [...sessions, {
-        ...this.ActiveLoginSession,
-        ...{ session_id: this.Session },
-      }];
-    }
+    this.ActiveLoginSession &&
+      (
+        this.ActiveLoginSession.expire = this.time,
+          sessions = [
+            ...sessions.filter((i) => i.session_id !== this.Session),
+            this.ActiveLoginSession,
+          ]
+      );
     return this;
   }
-  getSession() {}
-  setLogin() {
-    const p = sessions.find((i) => i.session_id == this.Session);
-    if (p) {
+  getLogin() {
+    if (this.ActiveLoginSession) {
       this.Login = {
-        name: p?.name,
-        email: p?.email,
-        id: p?.id,
-        roles: p?.roles,
+        name: this.ActiveLoginSession.name,
+        email: this.ActiveLoginSession.email,
+        id: this.ActiveLoginSession.id,
+        roles: this.ActiveLoginSession.roles,
       };
     }
     return this;
