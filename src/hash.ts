@@ -1,7 +1,5 @@
 import { crypto } from "https://deno.land/std@0.188.0/crypto/mod.ts";
-import {
-  encode,
-} from "https://deno.land/std@0.188.0/encoding/base64.ts";
+import { encode } from "https://deno.land/std@0.188.0/encoding/base64.ts";
 
 export class hash {
   static async sha256(str: string): Promise<string> {

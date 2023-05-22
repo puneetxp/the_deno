@@ -15,7 +15,7 @@ import { getCookies } from "https://deno.land/std@0.188.0/http/cookie.ts";
 
 //this is moduler and almost same performce
 export class Router {
-  constructor(public routes_list: Record<string, Route[]>) {}
+  constructor(public routes_list: Routes) { }
   async route(req: Request): Promise<Response> {
     const relativepath = req.url.replace(
       new RegExp(".*" + req.headers.get("host")),
@@ -152,26 +152,26 @@ function crud(
     {
       GET: [
         ...crud.crud.includes("all") &&
-            [{ path: "", handler: crud.class.all }] || [],
+        [{ path: "", handler: crud.class.all }] || [],
         ...crud.crud.includes("r") &&
-            [{ path: "/.+", handler: crud.class.show }] || [],
+        [{ path: "/.+", handler: crud.class.show }] || [],
       ],
       POST: [
         ...crud.crud.includes("c") &&
-            [{ path: "", handler: crud.class.store }] || [],
+        [{ path: "", handler: crud.class.store }] || [],
         ...crud.crud.includes("u") &&
-            [{ path: "/.+", handler: crud.class.update }] || [],
+        [{ path: "/.+", handler: crud.class.update }] || [],
       ],
       PATCH: [
         ...crud.crud.includes("upsert") &&
-            [{ path: "", handler: crud.class.upsert }] || [],
+        [{ path: "", handler: crud.class.upsert }] || [],
       ],
       WHERE: [
         ...crud.crud.includes("where") &&
-            [{ path: "", handler: crud.class.where }] || [],
+        [{ path: "", handler: crud.class.where }] || [],
       ],
       ...crud.crud.includes("d") &&
-          { DELETE: [{ path: "/.+", handler: crud.class.delete }] } || {},
+      { DELETE: [{ path: "/.+", handler: crud.class.delete }] } || {},
     },
     path,
     islogin,
