@@ -1,4 +1,4 @@
-import * as mysql2 from "https://deno.land/x/mysql2/mod.ts";
+import * as mysql2 from "npm:mysql2";
 import { TheData } from "./type.ts";
 const connection = mysql2.createPool({
   host: Deno.env.get("DBHOST"),
@@ -18,7 +18,7 @@ export class database {
     protected table: string,
     protected fillable: string[] = [],
     protected col: string = "*",
-  ) {}
+  ) { }
 
   where(where: TheData) {
     this.placeholder = [];
@@ -112,8 +112,7 @@ export class database {
         ? this.placeholder.push(...value)
         : this.placeholder.push(value);
       wherearray.push(
-        `${property} IN (${
-          Array.isArray(value) ? placeholder(value.length).join(",") : "?"
+        `${property} IN (${Array.isArray(value) ? placeholder(value.length).join(",") : "?"
         })`,
       );
     }
