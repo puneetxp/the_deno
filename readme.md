@@ -8,7 +8,7 @@ import {
   response,
   Router,
 } from "https://deno.land/x/the@0.0.0.4.5/mod.ts";
-import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.188.0/http/server.ts";
 const _routes = [{
   path: "/checlk",
   handler: () => response.JSON("s"),
@@ -402,7 +402,7 @@ Running 10s test @ http://localhost:8080/
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency   633.04us    0.98ms  31.01ms   97.65%
     Req/Sec     8.79k     1.34k   14.73k    91.54%
-  175770 requests in 10.10s, 46.94MB read
+  188770 requests in 10.10s, 46.94MB read
 Requests/sec:  17402.96
 Transfer/sec:      4.65MB
 ```
