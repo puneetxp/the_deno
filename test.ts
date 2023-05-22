@@ -1,5 +1,5 @@
 import { _Routes, compile_routes, response, Router } from "./mod.ts";
-import { serve } from "https://deno.land/std@0.175.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.188.0/http/server.ts";
 const _routes: _Routes = [{
   path: "/",
   handler: async () => await response.JSON("s"),

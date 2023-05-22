@@ -8,10 +8,10 @@ import {
   Routes,
 } from "./type.ts";
 import { response } from "./response.ts";
-import "https://deno.land/std@0.175.0/dotenv/load.ts";
+import "https://deno.land/std@0.188.0/dotenv/load.ts";
 import { intersect, mergeObject } from "./thefun.ts";
 import { Session } from "./Session.ts";
-import { getCookies } from "https://deno.land/std@0.175.0/http/cookie.ts";
+import { getCookies } from "https://deno.land/std@0.188.0/http/cookie.ts";
 
 //this is moduler and almost same performce
 export class Router {
