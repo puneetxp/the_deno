@@ -2,32 +2,16 @@ import { Model } from "./Model.ts";
 import { Session } from "./Session.ts";
 
 export type CallbackHandler = (
-  request: Request,
-  params: any[],
+  request: Session,
+  params: string[],
 ) => Promise<Response>;
-
-export type CallbackHandlerLogin = (
-  session: Session,
-  params: any[],
-) => Promise<Response>;
-
-export function isCallbackHandler(
-  fun: CallbackHandler | CallbackHandlerLogin,
-): fun is CallbackHandler {
-  return (fun as CallbackHandler) !== undefined;
-}
-export function isCallbackHandlerLogin(
-  fun: CallbackHandler | CallbackHandlerLogin,
-): fun is CallbackHandlerLogin {
-  return (fun as CallbackHandlerLogin) !== undefined;
-}
 
 export type guard = (req: Request) => Promise<false | string>;
 export type Routes = Record<string, Route[]>;
 export type TheData = Record<string, number | string | string[] | number[]>;
 
 export interface Route {
-  handler: CallbackHandler | CallbackHandlerLogin;
+  handler: CallbackHandler;
   path: string;
   method?: string;
   islogin?: boolean;
@@ -57,7 +41,7 @@ export interface Route_Group_with {
   guard?: guard[];
   method?: string;
   roles?: string[];
-  handler?: CallbackHandler | CallbackHandlerLogin;
+  handler?: CallbackHandler;
   crud?: any;
   child?: Route_Group_with[];
   group?: Record<string, Route_Group_with[]>;

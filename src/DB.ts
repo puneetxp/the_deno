@@ -1,4 +1,4 @@
-import * as mysql2 from "npm:mysql2";
+import { mysql2 } from "../deps.ts";
 import { TheData } from "./type.ts";
 const connection = mysql2.createPool({
   host: Deno.env.get("DBHOST"),

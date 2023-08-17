@@ -1,4 +1,3 @@
-import "https://deno.land/std@0.188.0/dotenv/load.ts";
 import { database, DB } from "./DB.ts";
 import { relation, TheData } from "./type.ts";
 export class Model {
