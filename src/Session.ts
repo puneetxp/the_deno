@@ -1,14 +1,11 @@
-import {
-  Cookie,
-  deleteCookie,
-  getCookies,
-  setCookie,
-} from "https://deno.land/std@0.188.0/http/cookie.ts";
+import { Cookie, deleteCookie, getCookies, getSetCookies, setCookie } from "../deps.ts";
+
 interface Active_role {
   updated_at: Date;
   user_id: number;
   role_id: number;
 }
+
 interface Role {
   name: string;
   enable: number;
@@ -43,17 +40,16 @@ interface LoginSession {
 let sessions: LoginSession[] = [];
 const sessionCookie = (
   session_id: string,
-  date: Date,
-  domain: string,
+  date: Date
 ): Cookie => {
   return {
     name: "PHPSESSID",
     value: session_id,
     httpOnly: true,
     path: "/",
-    domain: "." + domain,
-    sameSite: "Strict",
-    secure: true,
+    domain: "." + Deno.env.get("host"),
+    sameSite: Deno.env.get("samesite") as "Strict" | "Lax" | "None",
+    secure: Deno.env.has("secure"),
     expires: date,
   };
 };
@@ -62,10 +58,8 @@ export class Session {
   expirein = 30;
   time: Date;
   ActiveLoginSession: LoginSession | undefined;
-  domain: string;
   Login!: Login;
   constructor(public req: Request, public cookie?: Record<string, string>) {
-    this.domain = req.headers.get("host") || "";
     this.time = new Date();
     this.expire();
     if (this.cookie) {
@@ -121,9 +115,9 @@ export class Session {
       (i) => i.name,
     );
   }
-  getSessionRoles(session_id: string) {
-    return sessions.find((i) => i.session_id == session_id) || false;
-  }
+  // getSessionRoles(session_id: string) {
+  //   return sessions.find((i) => i.session_id == session_id) || false;
+  // }
   addSession(LoginSession: LoginSession) {
     sessions = [...sessions, LoginSession];
   }
@@ -142,7 +136,7 @@ export class Session {
 
   returnCookie() {
     const headers = new Headers();
-    setCookie(headers, sessionCookie(this.Session, this.time, this.domain));
+    setCookie(headers, sessionCookie(this.Session, this.time));
     const cookie = headers.get("set-cookie");
     if (cookie != null) {
       return {
@@ -152,13 +146,11 @@ export class Session {
   }
   reactiveSession() {
     this.ActiveLoginSession &&
-      (
-        this.ActiveLoginSession.expire = this.time,
-          sessions = [
-            ...sessions.filter((i) => i.session_id !== this.Session),
-            this.ActiveLoginSession,
-          ]
-      );
+      ((this.ActiveLoginSession.expire = this.time),
+        (sessions = [
+          ...sessions.filter((i) => i.session_id !== this.Session),
+          this.ActiveLoginSession,
+        ]));
     return this;
   }
   getLogin() {

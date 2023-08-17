@@ -1,5 +1,4 @@
 import { _Routes, compile_routes, response, Router } from "./mod.ts";
-import { serve } from "https://deno.land/std@0.188.0/http/server.ts";
 const _routes: _Routes = [{
   path: "/",
   handler: async () => await response.JSON("s"),
@@ -9,9 +8,9 @@ const _routes: _Routes = [{
   handler: async () => await response.JSON("s"),
 }];
 const routes = compile_routes(_routes);
-serve(
+Deno.serve(
+  { port: 9000 },
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
-  },
-  { port: 3333 },
+  }
 );

@@ -7,8 +7,7 @@ import {
   compile_routes,
   response,
   Router,
-} from "https://deno.land/x/the@0.0.0.4.6/mod.ts";
-import { serve } from "https://deno.land/std@0.188.0/http/server.ts";
+} from "https://deno.land/x/the@0.0.0.4.5/mod.ts";
 const _routes = [{
   path: "/checlk",
   handler: () => response.JSON("s"),
@@ -18,11 +17,11 @@ const _routes = [{
   handler: () => response.JSON("s"),
 }];
 const routes = compile_routes(_route);
-serve(
+Deno.serve(
+  { port: 3333 },
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
-  },
-  { port: 3333 },
+  }
 );
 ```
 
@@ -113,7 +112,7 @@ import {
   compile_routes,
   response,
   Router,
-} from "the_deno/mod.ts";
+} from "https://deno.land/x/the@0.0.0.4.5/mod.ts";
 export const _routes: _Routes = [
   {
     path: "/text",

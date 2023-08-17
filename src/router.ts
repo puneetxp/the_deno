@@ -1,19 +1,9 @@
-import {
-  _Routes,
-  guard,
-  isCallbackHandler,
-  isCallbackHandlerLogin,
-  Route,
-  Route_Group_with,
-  Routes,
-} from "./type.ts";
+import { _Routes, guard, Route_Group_with, Routes } from "./type.ts";
 import { response } from "./response.ts";
-import "https://deno.land/std@0.188.0/dotenv/load.ts";
 import { intersect, mergeObject } from "./thefun.ts";
 import { Session } from "./Session.ts";
 import { getCookies } from "https://deno.land/std@0.188.0/http/cookie.ts";
 
-//this is moduler and almost same performce
 export class Router {
   constructor(public routes_list: Routes) { }
   async route(req: Request): Promise<Response> {
@@ -50,37 +40,29 @@ export class Router {
             }
             if (r.roles) {
               if (intersect(active_session.Login.roles, r.roles) == false) {
-                return response.JSON(
-                  "Your Role is Limited",
-                  active_session,
-                  403,
-                );
+                return response.JSON("Your Role is Limited", active_session, 403);
               }
             }
-            if (isCallbackHandlerLogin(r.handler)) {
-              return await r.handler(active_session, params);
-            }
+            return await r.handler(active_session, params);
           }
         }
         return await response.JSON("Please Login First", undefined, 401);
       } else {
-        if (isCallbackHandler(r.handler)) {
-          return await r.handler(req, params);
-        }
+        return await r.handler(new Session(req), params);
       }
     }
     return await response.JSON("Not Found");
   }
 }
 export function compile_routes(route_pre: _Routes): Routes {
-  let route: Routes = {};
+  const route: Routes = {};
   for (const e of route_pre) {
     mergeObject(route, compile_route(e) || {});
   }
   return route_path_clean(route);
 }
 function compile_route(route: Route_Group_with): Routes | undefined {
-  let routes: Routes = {};
+  const routes: Routes = {};
   if (route.handler) {
     const x: Routes = {};
     if (!route.method) {
@@ -199,7 +181,7 @@ function child_route(
   roles?: string[],
   guard?: guard[],
 ): Routes {
-  let x: Routes = {};
+  const x: Routes = {};
   for (const e of route) {
     mergeObject(
       x,
