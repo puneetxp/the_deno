@@ -1,4 +1,4 @@
-import { Cookie, deleteCookie, getCookies, getSetCookies, setCookie } from "../deps.ts";
+import { Cookie, deleteCookie, setCookie } from "../deps.ts";
 
 interface Active_role {
   updated_at: Date;
@@ -38,6 +38,10 @@ interface LoginSession {
 }
 
 let sessions: LoginSession[] = [];
+let Roles: Role[] = [];
+export function setRole(x: Role[]) {
+  Roles = x;
+}
 const sessionCookie = (
   session_id: string,
   date: Date
@@ -47,7 +51,7 @@ const sessionCookie = (
     value: session_id,
     httpOnly: true,
     path: "/",
-    domain: "." + Deno.env.get("host"),
+    domain: Deno.env.get("ssl"),
     sameSite: Deno.env.get("samesite") as "Strict" | "Lax" | "None",
     secure: Deno.env.has("secure"),
     expires: date,
@@ -57,7 +61,7 @@ export class Session {
   Session!: string;
   expirein = 30;
   time: Date;
-  ActiveLoginSession: LoginSession | undefined;
+  ActiveLoginSession?: LoginSession;
   Login!: Login;
   constructor(public req: Request, public cookie?: Record<string, string>) {
     this.time = new Date();
@@ -66,29 +70,34 @@ export class Session {
       this.Session = this.cookie.PHPSESSID;
     }
   }
+  cleansession() {
+    sessions = sessions.filter(i => i.expire > new Date());
+    return this;
+  }
   expireSet(miniutes: number) {
     this.expirein = miniutes;
     return this;
   }
-  startnew(User: User, Role: Role[] = [], Active_Role: Active_role[] = []) {
+  startnew(User: User, Active_Role: Active_role[] = []) {
     if (this.Session) {
       this.removeSession();
     }
-    this.newSession(User, Role, Active_Role);
+    this.newSession(User, Active_Role);
     return this;
   }
-  newSession(User: User, Role: Role[], Active_Role: Active_role[]) {
+  newSession(User: User, Active_Role: Active_role[]) {
     this.Session = crypto.randomUUID();
-    return this.addSession({
+    this.ActiveLoginSession = {
       session_id: this.Session,
       name: User.name,
       email: User.email,
       expire: this.time,
       id: User.id,
-      roles: this.SessionRoles(Role, Active_Role),
+      roles: this.SessionRoles(Roles, Active_Role),
       ip: this.req.headers.get("x-forwarded-for"),
       agent: this.req.headers.get("user-agent"),
-    });
+    };
+    this.addSession(this.ActiveLoginSession);
   }
   validSessionIp() {
     this.ActiveLoginSession = sessions.find((i) => {
@@ -100,11 +109,11 @@ export class Session {
     return this;
   }
   validSession() {
-    this.ActiveLoginSession = sessions.find((i) => {
+    this.ActiveLoginSession = sessions.find((i) =>
       i.expire > new Date() &&
-        i.session_id == this.Session &&
-        i.agent == this.req.headers.get("user-agent");
-    });
+      i.session_id == this.Session
+      && i.agent == this.req.headers.get("user-agent")
+    );
     return this;
   }
   expire() {
@@ -115,9 +124,6 @@ export class Session {
       (i) => i.name,
     );
   }
-  // getSessionRoles(session_id: string) {
-  //   return sessions.find((i) => i.session_id == session_id) || false;
-  // }
   addSession(LoginSession: LoginSession) {
     sessions = [...sessions, LoginSession];
   }

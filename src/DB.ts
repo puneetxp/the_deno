@@ -90,7 +90,7 @@ export class database {
 
   UpdateQ(data: TheData) {
     this.query = `UPDATE ${this.table} SET `;
-    const set = [];
+    const set: string[] = [];
     for (const [key, value] of Object.entries(data)) {
       this.placeholder.push(value);
       set.push(`${key} = (?)`);
