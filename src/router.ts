@@ -2,7 +2,7 @@ import { _Routes, guard, Route_Group_with, Routes } from "./type.ts";
 import { response } from "./response.ts";
 import { intersect, mergeObject } from "./thefun.ts";
 import { Session } from "./Session.ts";
-import { getCookies } from "https://deno.land/std@0.188.0/http/cookie.ts";
+import { getCookies } from "../deps.ts";
 
 export class Router {
   constructor(public routes_list: Routes) { }
