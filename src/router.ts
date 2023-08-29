@@ -133,7 +133,7 @@ function crud(
   return compile_group(
     {
       GET: [
-        ...crud.crud.includes("all") &&
+        ...crud.crud.includes("a") &&
         [{ path: "", handler: crud.class.all }] || [],
         ...crud.crud.includes("r") &&
         [{ path: "/.+", handler: crud.class.show }] || [],
@@ -145,11 +145,11 @@ function crud(
         [{ path: "/.+", handler: crud.class.update }] || [],
       ],
       PATCH: [
-        ...crud.crud.includes("upsert") &&
+        ...crud.crud.includes("p") &&
         [{ path: "", handler: crud.class.upsert }] || [],
       ],
       WHERE: [
-        ...crud.crud.includes("where") &&
+        ...crud.crud.includes("w") &&
         [{ path: "", handler: crud.class.where }] || [],
       ],
       ...crud.crud.includes("d") &&
