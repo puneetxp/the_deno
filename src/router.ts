@@ -19,7 +19,7 @@ export class Router {
       );
     });
     if (r) {
-      const params: any[] = [];
+      const params: string[] = [];
       r.path.split("/").forEach((e, key) => {
         if (e == ".+") {
           params.push(pathparam[key]);
@@ -141,6 +141,8 @@ function crud(
       POST: [
         ...crud.crud.includes("c") &&
         [{ path: "", handler: crud.class.store }] || [],
+        ...crud.crud.includes("w") &&
+        [{ path: "/where", handler: crud.class.where }] || [],
         ...crud.crud.includes("u") &&
         [{ path: "/.+", handler: crud.class.update }] || [],
       ],
@@ -148,12 +150,10 @@ function crud(
         ...crud.crud.includes("p") &&
         [{ path: "", handler: crud.class.upsert }] || [],
       ],
-      WHERE: [
-        ...crud.crud.includes("w") &&
-        [{ path: "", handler: crud.class.where }] || [],
-      ],
-      ...crud.crud.includes("d") &&
-      { DELETE: [{ path: "/.+", handler: crud.class.delete }] } || {},
+      DELETE: [
+        ...crud.crud.includes("d") &&
+        [{ path: "/.+", handler: crud.class.delete }] || []
+      ]
     },
     path,
     islogin,
@@ -162,7 +162,7 @@ function crud(
   );
 }
 function route_path_clean(route: Routes) {
-  for (const [key, value] of Object.entries(route)) {
+  for (const [key] of Object.entries(route)) {
     route[key].forEach((i, index) => {
       if (route[key][index].path != "/") {
         route[key][index].path = route[key][index].path.replace(
