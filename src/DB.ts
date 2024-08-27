@@ -64,13 +64,10 @@ export class database<_model> {
 
     async exe() {
         this.bind();
-        console.log(this.query);
-        console.log(this.placeholder);
         [this.rows, this.field] = await connection.execute(
             this.query,
             this.placeholder,
         );
-        console.log(this.rows);
         this.resetdata();
         return this;
     }

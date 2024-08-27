@@ -134,7 +134,6 @@ export class Session {
         );
     }
     async addSession(LoginSession: LoginSession) {
-        console.log(LoginSession);
         await kv.set(["users", LoginSession.session_id], LoginSession);
     }
     removeSession() {
