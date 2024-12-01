@@ -42,8 +42,8 @@ export class database<_model> {
         return this.SelSet().WhereQ(where).LimitQ(limit);
     }
 
-    async create(data: TheData[]) {
-        return await this.InSet().InsertQ(data).exe();
+    async create(data: TheData) {
+        return await this.InSet().CreateQ(data).exe();
     }
 
     async update(data: TheData) {
@@ -58,12 +58,14 @@ export class database<_model> {
         return this.DelSet().WhereQ(where);
     }
 
-    upsert(data: TheData[]) {
-        return this.InSet().UpsertQ(data).get();
+    async upsert(data: TheData[]) {
+        return await this.InSet().UpsertQ(data).get();
     }
 
     async exe() {
         this.bind();
+        //console.log(this.query);
+        //console.log(this.placeholder);
         [this.rows, this.field] = await connection.execute(
             this.query,
             this.placeholder,

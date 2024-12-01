@@ -9,7 +9,7 @@ export abstract class Model<_model> {
     protected insertid!: number;
     protected db!: database<_model>;
     public page: { [key: string]: any } = {};
-    public items: _model[] | any;
+    public items: _model[] | any = [];
     public item: _model;
     protected singular: boolean = false;
     protected _with: any;
@@ -162,6 +162,7 @@ export abstract class Model<_model> {
     // single
     public async find(value: any, key: string = "id"): Promise<this> {
         this.item = await this.db.find({ [key]: value }).first();
+        this.singular = true;
         return this;
     }
 
@@ -174,25 +175,25 @@ export abstract class Model<_model> {
         return this;
     }
 
-    public async create(data: any[] = []) {
-        await this.db.create(data);
+    public async create(data: TheData) {
+        await this.db.create(this.sanitize(data));
         return this;
     }
 
     // insert
-    public async insert(data: any) {
-        await this.db.insert(data);
+    public async insert(data: TheData[]) {
+        await this.db.insert(this.clean(data));
         return this;
     }
 
     // update
-    public upsert(data: any) {
-        this.db.upsert(data);
+    public async upsert(data: TheData[]) {
+        await this.db.upsert(this.clean(data));
         return this;
     }
 
     public async update(data: any) {
-        await this.db.update(data);
+        await this.db.update(this.sanitize(data));
         return this;
     }
 
@@ -208,13 +209,18 @@ export abstract class Model<_model> {
     }
 
     public clean(data: any[]): any[] {
-        return data.map((item) => {
-            return Object.fromEntries(
-                Object.entries(item).filter(([key]) =>
-                    this.fillable.includes(key)
-                ),
-            );
-        });
+        return data.map((item) => Object.fromEntries(
+            Object.entries(item).filter(([key]) =>
+                this.fillable.includes(key)
+            ),
+        ));
+    }
+    public sanitize(item: TheData): TheData {
+        return Object.fromEntries(
+            Object.entries(item).filter(([key]) =>
+                this.fillable.includes(key)
+            ),
+        );
     }
 
     // default output
@@ -230,7 +236,7 @@ export abstract class Model<_model> {
     // call relationship
     // Better for spa and fastest way
     public async with(data: any, first: boolean = true): Promise<this> {
-        if (this.items.length || this.singular) {
+        if (this.items.length) {
             let x: any = {};
             if (Array.isArray(data)) {
                 if (first) this._with = data;
@@ -269,7 +275,7 @@ export abstract class Model<_model> {
                 }
                 x[data] = this.isnull(await this.relation(data));
             }
-            this.singular
+            this.singular || first
                 ? x[this.name] = [this.items]
                 : x[this.name] = this.items;
             this.items = x;

@@ -82,7 +82,7 @@ export class Session {
         return this;
     }
     startnew(User: User, Active_Role: Active_role[] = [], books: number[] = [], book: number | undefined = undefined) {
-        if(!book){
+        if (!book) {
             book = books[0];
         }
         if (this.Session) {
@@ -151,7 +151,8 @@ export class Session {
 
     returnCookie() {
         const headers = new Headers();
-        setCookie(headers, sessionCookie(this.Session, this.time));
+        setCookie(headers,
+            sessionCookie(this.Session, this.time));
         const cookie = headers.get("set-cookie");
         if (cookie != null) {
             return {
