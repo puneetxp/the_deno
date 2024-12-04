@@ -1,42 +1,48 @@
 import { database, DB } from "./DB.ts";
 import { relation, TheData } from "./type.ts";
 export abstract class Model<_model> {
-    protected table!: string;
-    protected nullable: string[] = [];
-    protected model: string[] = [];
+    constructor(
+        protected name: string = "",
+        protected table: string,
+        protected nullable: string[] = [],
+        protected fillable: string[] = [],
+        protected model: string[] = [],
+        protected relations: {
+            [key: string]: {
+                table: string;
+                name: string;
+                key: string;
+                callback: () => Model<any>;
+            };
+        } = {},
+    ) {
+        this.db = DB<_model>(this.table, this.fillable);
+    }
+    public item!: _model;
     protected relationship: Record<string, relation> = {};
     protected data: TheData[] = [];
     protected insertid!: number;
     protected db!: database<_model>;
     public page: { [key: string]: any } = {};
     public items: _model[] | any = [];
-    public item: _model;
     protected singular: boolean = false;
     protected _with: any;
-    protected name: string = "";
-    protected fillable: string[] = [];
-    protected relations: {
-        [key: string]: { name: string; key: string; callback: any };
-    } = {};
     protected one!: string[];
-
-    set(table: string) {
-        this.table = table;
-        this.db = DB<_model>(table, this.fillable);
-        return this;
-    }
 
     public setSingular(): this {
         this.singular = true;
         return this;
     }
 
-    public paginate(pageNumber: number = 1, pageItems: number = 25): any {
-        pageNumber =
-            Number(new URLSearchParams(window.location.search).get("page")) ||
-            pageNumber;
+    public async paginate(
+        pageNumber: number = 1,
+        pageItems: number = 25,
+    ): Promise<this | null> {
+        pageNumber = Number(
+            new URLSearchParams(globalThis.location.search).get("page"),
+        ) || pageNumber;
         pageItems = Number(
-            new URLSearchParams(window.location.search).get("pageItems"),
+            new URLSearchParams(globalThis.location.search).get("pageItems"),
         ) || pageItems;
         this.page["result"] = this.count();
         if (this.page["result"]) {
@@ -44,14 +50,14 @@ export abstract class Model<_model> {
             this.page["pageItems"] = pageItems;
             this.page["totalpages"] = this.page["result"] /
                 this.page["pageItems"];
-            this.page["get"] = new URLSearchParams(window.location.search)
+            this.page["get"] = new URLSearchParams(globalThis.location.search)
                 .toString();
             let offset = (pageNumber - 1) * pageItems;
             while (offset > this.page["result"]) {
                 offset -= pageItems;
             }
             this.db.OffsetQ(offset).LimitQ(pageItems);
-            return this.get();
+            return await this.get();
         } else {
             return null;
         }
@@ -209,17 +215,17 @@ export abstract class Model<_model> {
     }
 
     public clean(data: any[]): any[] {
-        return data.map((item) => Object.fromEntries(
-            Object.entries(item).filter(([key]) =>
-                this.fillable.includes(key)
-            ),
-        ));
+        return data.map((item) =>
+            Object.fromEntries(
+                Object.entries(item).filter(([key]) =>
+                    this.fillable.includes(key)
+                ),
+            )
+        );
     }
     public sanitize(item: TheData): TheData {
         return Object.fromEntries(
-            Object.entries(item).filter(([key]) =>
-                this.fillable.includes(key)
-            ),
+            Object.entries(item).filter(([key]) => this.fillable.includes(key)),
         );
     }
 
@@ -358,3 +364,4 @@ export abstract class Model<_model> {
         this.db.truncate().exe();
     }
 }
+
