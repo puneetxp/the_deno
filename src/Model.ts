@@ -202,6 +202,12 @@ export abstract class Model<_model> {
         await this.db.update(this.sanitize(data));
         return this;
     }
+    public up(data: any[]) {
+        this.db.UpSet();
+        data.forEach((i) => this.db.UpdateQ(this.sanitize(i)));
+        this.db.exe();
+        return this;
+    }
 
     public toggle(where: any, filed: string = "enable") {
         return this.db.UpSet().WhereQ(where).rawsql(
@@ -364,4 +370,3 @@ export abstract class Model<_model> {
         this.db.truncate().exe();
     }
 }
-
