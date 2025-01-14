@@ -202,10 +202,10 @@ export abstract class Model<_model> {
         await this.db.update(this.sanitize(data));
         return this;
     }
-    public up(data: any[]) {
+    public async up(data: any[]) {
         this.db.UpSet();
         data.forEach((i) => this.db.UpdateQ(this.sanitize(i)));
-        this.db.exe();
+        await this.db.exe();
         return this;
     }
 
