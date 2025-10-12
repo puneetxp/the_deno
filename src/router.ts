@@ -14,7 +14,7 @@ export class Router {
         if (this.route) {
             return await this.checkPermission();
         }
-        return response.JSON("Not Found");
+        return await response.JSONF("Not Found", {}, 404, this.req);
     }
 
     async checkPermission(): Promise<Response> {
@@ -27,22 +27,24 @@ export class Router {
                         this.params,
                     );
                 } else {
-                    return response.JSON(
+                    return await response.JSONF(
                         "Session Error",
-                        login.active_session,
+                        {},
                         401,
+                        this.req
                     );
                 }
             } else {
-                return response.JSON(
+                return await response.JSONF(
                     login.error,
-                    login.active_session,
+                    {},
                     401,
+                    this.req
                 );
             }
         }
         return await this.route?.handler(new Session(this.req), this.params) ||
-            response.JSON("Handler not found");
+            await response.JSONF("Handler not found", {}, 500, this.req);
     }
 
     async login(

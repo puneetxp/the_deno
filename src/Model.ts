@@ -182,6 +182,7 @@ export abstract class Model<_model> {
     }
 
     public async create(data: TheData) {
+        await this.db.LimitQ(null);
         await this.db.create(this.sanitize(data));
         return this;
     }
