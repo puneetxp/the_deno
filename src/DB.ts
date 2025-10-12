@@ -15,8 +15,8 @@ export class database<_model> {
     protected param: string[] = [];
     protected placeholder: any[] = [];
     protected enable: boolean | null = null;
-    protected limit!: number;
-    protected offset!: number;
+    protected limit: number | null = null;
+    protected offset: number | null = null;
     protected __where: Record<string, any> = {
         "AND": [],
         "OR": []
@@ -218,7 +218,7 @@ export class database<_model> {
         return this;
     }
 
-    LimitQ(limit: number) {
+    LimitQ(limit: number | null) {
         this.limit = limit;
         return this;
     }
