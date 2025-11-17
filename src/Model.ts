@@ -1,4 +1,5 @@
 import { database, DB } from "./DB.ts";
+import { Session } from "./Session.ts";
 import { relation, TheData } from "./type.ts";
 export abstract class Model<_model> {
     constructor(
@@ -97,11 +98,27 @@ export abstract class Model<_model> {
         return pages;
     }
 
-    public async all() {
+    public async all(param?: URLPatternResult) {
+        const searchInput = param?.search?.input ?? "";
+        const searchParams = new URLSearchParams(
+            searchInput.startsWith("?") ? searchInput.slice(1) : searchInput,
+        );
+        const latest = searchParams.get("latest") ?? undefined;
+
+        if (latest) {
+            return await this.wherec([
+            ["updated_at", ">", latest],
+            ]).get();
+        }
         return await this.get();
     }
 
-    public where(where: any) {
+    public reset(){
+        this.db.resetdata();
+        return this;
+    }
+    public where(where: any,reset: boolean = true) {
+        reset && this.reset();
         this.db.where(where);
         return this;
     }
