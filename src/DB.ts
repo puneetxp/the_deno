@@ -1,5 +1,13 @@
 import { mysql2 } from "../deps.ts";
 import { TheData } from "./type.ts";
+
+type QueryablePool = mysql2.Pool & {
+    query<T = unknown>(
+        sql: string,
+        values?: any[] | Record<string, unknown>,
+    ): Promise<[T, mysql2.FieldPacket[]]>;
+};
+
 const connection = mysql2.createPool({
     host: Deno.env.get("DBHOST"),
     port: 3306,
@@ -7,7 +15,7 @@ const connection = mysql2.createPool({
     password: Deno.env.get("DBPWD"),
     database: Deno.env.get("DBNAME"),
     connectionLimit: 4,
-});
+}) as QueryablePool;
 
 export class database<_model> {
     protected query = "";
@@ -66,7 +74,7 @@ export class database<_model> {
         this.bind();
         //console.log(this.query);
         //console.log(this.placeholder);
-        [this.rows, this.field] = await connection.execute(
+        [this.rows, this.field] = await connection.query(
             this.query,
             this.placeholder,
         );
