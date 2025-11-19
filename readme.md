@@ -7,7 +7,7 @@ import {
   compile_routes,
   response,
   Router,
-} from "https://deno.land/x/the@0.0.0.4.5/mod.ts";
+} from "jsr:@puneetxp/the@0.1.0";
 const _routes = [{
   path: "/checlk",
   handler: () => response.JSON("s"),
@@ -112,7 +112,7 @@ import {
   compile_routes,
   response,
   Router,
-} from "https://deno.land/x/the@0.0.0.4.5/mod.ts";
+} from "jsr:@puneetxp/the@0.1.0";
 export const _routes: _Routes = [
   {
     path: "/text",
