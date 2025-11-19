@@ -124,7 +124,7 @@ export class Router {
         return this;
     }
 }
-export function compile_url_pattern(x: Routes) {
+export function compile_url_pattern(x: Routes): Routes {
     Object.keys(x).forEach(
         (y) => {
             x[y] = x[y].map((i) => {

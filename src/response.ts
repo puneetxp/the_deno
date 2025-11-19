@@ -17,7 +17,7 @@ export class response {
     session?: Session,
     status?: number,
     header?: Record<string, string | null>,
-  ) {
+  ): Response {
     const origin = session?.req.headers.get("origin") || undefined;
     return new Response(JSON.stringify(body), {
       status: status || 200,
@@ -34,7 +34,7 @@ export class response {
     session?: Session,
     status?: number,
     header?: Record<string, string | null>,
-  ) {
+  ): Response {
     const origin = session?.req.headers.get("origin") || undefined;
     return new Response(JSON.stringify(body), {
       status: status || 200,
@@ -51,7 +51,7 @@ export class response {
     header: Record<string, string | null> = {},
     status?: number,
     req?: Request,
-  ) {
+  ): Promise<Response> {
     const origin = req?.headers.get("origin") || undefined;
     return new Response(JSON.stringify(body), {
       status: status || 200,
@@ -62,7 +62,7 @@ export class response {
       },
     });
   }
-  static OPTIONS(req: Request) {
+  static OPTIONS(req: Request): Response {
     const origin = req.headers.get("origin") || "*";
     return new Response(null, {
       status: 204,
