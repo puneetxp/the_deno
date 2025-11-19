@@ -36,41 +36,41 @@ export class database<_model> {
         protected col: string = "*",
     ) { }
 
-    raw(sql: string, bind = []) {
+    raw(sql: string, bind: any[] = []): this {
         this.query = sql;
         this.placeholder = bind;
         return this;
     }
 
-    where(where: TheData) {
+    where(where: TheData): this {
         return this.SelSet().WhereQ(where);
     }
 
-    find(where: TheData, limit = 1) {
+    find(where: TheData, limit = 1): this {
         return this.SelSet().WhereQ(where).LimitQ(limit);
     }
 
-    async create(data: TheData) {
+    async create(data: TheData): Promise<database<_model>> {
         return await this.InSet().CreateQ(data).exe();
     }
 
-    async update(data: TheData) {
+    async update(data: TheData): Promise<database<_model>> {
         return await this.UpSet().UpdateQ(data).exe();
     }
 
-    async insert(data: TheData[]) {
+    async insert(data: TheData[]): Promise<database<_model>> {
         return await this.InSet().InsertQ(data).exe();
     }
 
-    delete(where: TheData) {
+    delete(where: TheData): this {
         return this.DelSet().WhereQ(where);
     }
 
-    async upsert(data: TheData[]) {
+    async upsert(data: TheData[]): Promise<any> {
         return await this.InSet().UpsertQ(data).get();
     }
 
-    async exe() {
+    async exe(): Promise<this> {
         this.bind();
         //console.log(this.query);
         //console.log(this.placeholder);
@@ -82,7 +82,7 @@ export class database<_model> {
         return this;
     }
 
-    bind() {
+    bind(): void {
         if (this.__where["AND"].length > 0) {
             if (this.enable) {
                 this.WhereQ({ "enable": ["1"] });
@@ -104,7 +104,7 @@ export class database<_model> {
         }
     }
 
-    bindwhere(data: any, join: "AND" | "OR" = "AND") {
+    bindwhere(data: any, join: "AND" | "OR" = "AND"): void {
         this.query += (join == "AND" ? "" : " " + join + " ") + data.map((value: any) => {
             if (Array.isArray(value[2])) {
                 this.placeholder = [...this.placeholder, ...value[2]];
@@ -119,7 +119,7 @@ export class database<_model> {
         }).join(join);
     }
 
-    many() {
+    many(): any {
         return this.rows;
     }
 
@@ -127,12 +127,12 @@ export class database<_model> {
         return (await this.exe()).rows[0];
     }
 
-    findQ(value: any, key = "id") {
+    findQ(value: any, key = "id"): this {
         this.WhereQ({ [key]: value });
         return this;
     }
 
-    async get(n?: number) {
+    async get(n?: number): Promise<any> {
         await this.exe();
         if (typeof n == "number") {
             return await this.rows[0];
@@ -140,7 +140,7 @@ export class database<_model> {
         return this.rows;
     }
 
-    UpsertQ(data: TheData[]) {
+    UpsertQ(data: TheData[]): this {
         this.InsertQ(data);
         this.query += " on duplicate key update ";
         Object.keys(data[0]).forEach((i) =>
@@ -150,18 +150,18 @@ export class database<_model> {
         return this;
     }
 
-    rawsql(sql: string) {
+    rawsql(sql: string): this {
         this.query = sql;
         return this;
     }
 
-    CreateQ(data: TheData) {
+    CreateQ(data: TheData): this {
         this.placeholder = [...this.placeholder, ...Object.values(data)];
         this.query += `( ${Object.keys(data).join(",")} ) VALUES ( ${Object.values(data).map(() => "?").join(",")} )`;
         return this;
     }
 
-    InsertQ(data: TheData[]) {
+    InsertQ(data: TheData[]): this {
         if (data.length > 0) {
             this.query += ` ( ${Object.keys(data[0]).join(",")} ) VALUES `;
             const insert: any[] = [];
@@ -176,7 +176,7 @@ export class database<_model> {
         return this;
     }
 
-    UpdateQ(data: TheData) {
+    UpdateQ(data: TheData): this {
         this.query = `UPDATE ${this.table} SET `;
         const set: string[] = [];
         for (const [key, value] of Object.entries(data)) {
@@ -187,56 +187,56 @@ export class database<_model> {
         return this;
     }
 
-    WhereQ(where: TheData, type: "AND" | "OR" = "AND") {
+    WhereQ(where: TheData, type: "AND" | "OR" = "AND"): this {
         for (const property in where) {
             this.__where[type].push([property, "IN", where[property]]);
         }
         return this;
     }
 
-    WhereCustomQ(where: any[], type: "AND" | "OR" = "AND") {
+    WhereCustomQ(where: any[], type: "AND" | "OR" = "AND"): this {
         where.forEach(element => {
             this.__where[type].push([element[0], element[1], element[2]]);
         });
         return this;
     }
 
-    SelSet(col: string[] = ["*"]) {
+    SelSet(col: string[] = ["*"]): this {
         this.query = `SELECT ${col.join(" , ")} FROM ${this.table}`;
         return this;
     }
 
-    CountSet(id = "*") {
+    CountSet(id = "*"): this {
         this.query = `SELECT count(${id}) FROM this.table`;
         return this;
     }
 
-    InSet() {
+    InSet(): this {
         this.query = `INSERT INTO ${this.table}`;
         return this;
     }
 
-    UpSet() {
+    UpSet(): this {
         this.query = `UPDATE ${this.table} SET `;
         return this;
     }
 
-    DelSet() {
+    DelSet(): this {
         this.query = `DELETE FROM ${this.table} `;
         return this;
     }
 
-    LimitQ(limit: number | null) {
+    LimitQ(limit: number | null): this {
         this.limit = limit;
         return this;
     }
 
-    OffsetQ(Offset: number) {
+    OffsetQ(Offset: number): this {
         this.offset = Offset;
         return this;
     }
 
-    lastinserts() {
+    lastinserts(): Promise<any> {
         //console.log(this.rows);
         const value = [];
         for (let i = 0; i < this.rows.affectedRows; i++) {
@@ -246,16 +246,16 @@ export class database<_model> {
         //console.log(value);
         return this.where({ id: value }).get();
     }
-    lastinsert() {
+    lastinsert(): Promise<any> {
         //console.log(this.rows);
         return this.where({ id: this.rows.insertId }).get(1);
     }
 
-    truncate(){
+    truncate(): this {
         this.query = `TRUNCATE FROM ${this.table} `;
         return this;
     }
-    resetdata() {
+    resetdata(): void {
         this.placeholder = [];
         this.__where = {
             "AND": [],
@@ -265,7 +265,7 @@ export class database<_model> {
 
 }
 
-export const DB = <T>(table: string, fillable: string[], col?: string) => new database<T>(table, fillable, col);
+export const DB = <T>(table: string, fillable: string[], col?: string): database<T> => new database<T>(table, fillable, col);
 function placeholder(i: number) {
     const r: string[] = [];
     for (let n = 0; n < i; n++) {

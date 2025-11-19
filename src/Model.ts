@@ -98,7 +98,7 @@ export abstract class Model<_model> {
         return pages;
     }
 
-    public async all(param?: URLPatternResult) {
+    public async all(param?: URLPatternResult): Promise<this> {
         const searchInput = param?.search?.input ?? "";
         const searchParams = new URLSearchParams(
             searchInput.startsWith("?") ? searchInput.slice(1) : searchInput,
@@ -113,11 +113,11 @@ export abstract class Model<_model> {
         return await this.get();
     }
 
-    public reset(){
+    public reset(): this{
         this.db.resetdata();
         return this;
     }
-    public where(where: any,reset: boolean = true) {
+    public where(where: any,reset: boolean = true): this {
         reset && this.reset();
         this.db.where(where);
         return this;
@@ -143,7 +143,7 @@ export abstract class Model<_model> {
         return this;
     }
 
-    public wherec(where: any) {
+    public wherec(where: any): this {
         this.db.SelSet().WhereCustomQ(where);
         return this;
     }
@@ -189,52 +189,52 @@ export abstract class Model<_model> {
         return this;
     }
 
-    public async getInserted() {
+    public async getInserted(): Promise<any> {
         return await this.db.lastinsert();
     }
 
-    public async getsInserted() {
+    public async getsInserted(): Promise<this> {
         this.items = await this.db.lastinserts();
         return this;
     }
 
-    public async create(data: TheData) {
+    public async create(data: TheData): Promise<this> {
         await this.db.LimitQ(null);
         await this.db.create(this.sanitize(data));
         return this;
     }
 
     // insert
-    public async insert(data: TheData[]) {
+    public async insert(data: TheData[]): Promise<this> {
         await this.db.insert(this.clean(data));
         return this;
     }
 
     // update
-    public async upsert(data: TheData[]) {
+    public async upsert(data: TheData[]): Promise<this> {
         await this.db.upsert(this.clean(data));
         return this;
     }
 
-    public async update(data: any) {
+    public async update(data: any): Promise<this> {
         await this.db.update(this.sanitize(data));
         return this;
     }
-    public async up(data: any[]) {
+    public async up(data: any[]): Promise<this> {
         this.db.UpSet();
         data.forEach((i) => this.db.UpdateQ(this.sanitize(i)));
         await this.db.exe();
         return this;
     }
 
-    public toggle(where: any, filed: string = "enable") {
+    public toggle(where: any, filed: string = "enable"): Promise<database<_model>> {
         return this.db.UpSet().WhereQ(where).rawsql(
             `SET \`${filed}\` = NOT \`${filed}\``,
         ).exe();
     }
 
     // delete
-    public delete(where: any): any {
+    public delete(where: any): Promise<database<_model>> {
         return this.db.delete(where).exe();
     }
 
@@ -259,7 +259,7 @@ export abstract class Model<_model> {
     }
 
     // array output
-    public array() {
+    public array(): any {
         return this.items;
     }
 
@@ -313,14 +313,14 @@ export abstract class Model<_model> {
         return this;
     }
 
-    public isnull(x): any[] {
+    public isnull(x: any): any[] {
         if (x == null) {
             return [];
         }
         return x?.items;
     }
 
-    public async relation(data: string) {
+    public async relation(data: string): Promise<Model<any> | null> {
         const where: any = {};
         const x = this.singular
             ? [this.items[this.relations[data]["name"]]]
@@ -377,14 +377,14 @@ export abstract class Model<_model> {
         for (const index of Object.keys(data)) {
             for (const [key, item] of Object.entries(model)) {
                 data = this.filter_relation(key, data);
-                data[index][key] = new this.relations[key]["callback"]()
-                    .sortout(item, data[index][key], base ? base : this.items);
+                data[index][key] = this.relations[key]["callback"]()
+                    .sortout(item as any[], data[index][key], base ? base : this.items);
             }
         }
         return data;
     }
 
-    public clear() {
-        this.db.truncate().exe();
+    public clear(): Promise<database<_model>> {
+        return this.db.truncate().exe();
     }
 }

@@ -73,15 +73,15 @@ export class Session {
             this.Session = this.cookie.PHPSESSID;
         }
     }
-    async cleansession() {
+    async cleansession(): Promise<this> {
         sessions = sessions.filter(i => i.expire > new Date());
         return this;
     }
-    expireSet(miniutes: number) {
+    expireSet(miniutes: number): this {
         this.expirein = miniutes;
         return this;
     }
-    startnew(User: User, Active_Role: Active_role[] = [], books: number[] = [], book: number | undefined = undefined) {
+    startnew(User: User, Active_Role: Active_role[] = [], books: number[] = [], book: number | undefined = undefined): this {
         if (!book) {
             book = books[0];
         }
@@ -107,7 +107,7 @@ export class Session {
         };
         this.addSession(this.ActiveLoginSession);
     }
-    validSessionIp() {
+    validSessionIp(): this {
         this.ActiveLoginSession = sessions.find((i) => {
             i.expire > new Date() &&
                 i.session_id == this.Session &&
@@ -116,7 +116,7 @@ export class Session {
         });
         return this;
     }
-    async validSession() {
+    async validSession(): Promise<this> {
         const x = (await kv.get<LoginSession>(["users", this.Session])).value;
         if (x) {
             if (x.session_id == this.Session && x.agent == this.req.headers.get("user-agent")) {
@@ -128,7 +128,7 @@ export class Session {
     expire() {
         this.time.setTime(this.time.getTime() + this.expirein * 60 * 1000);
     }
-    SessionRoles(Role: Role[], Active_Role: Active_role[]) {
+    SessionRoles(Role: Role[], Active_Role: Active_role[]): string[] {
         return Role.filter((i) => Active_Role.filter((a) => a.role_id == i.id)).map(
             (i) => i.name,
         );
@@ -136,11 +136,11 @@ export class Session {
     async addSession(LoginSession: LoginSession) {
         await kv.set(["users", LoginSession.session_id], LoginSession);
     }
-    removeSession() {
+    removeSession(): void {
         kv.delete(["users", this.Session]);
     }
 
-    removeCookie() {
+    removeCookie(): { "set-cookie"?: string | null } {
         this.removeSession();
         const headers = new Headers();
         deleteCookie(headers, "PHPSESSID");
@@ -149,7 +149,7 @@ export class Session {
         };
     }
 
-    returnCookie() {
+    returnCookie(): { "set-cookie"?: string } | undefined {
         const headers = new Headers();
         setCookie(headers,
             sessionCookie(this.Session, this.time));
@@ -160,7 +160,7 @@ export class Session {
             };
         }
     }
-    reactiveSession() {
+    reactiveSession(): this {
         if (this.ActiveLoginSession) {
             this.ActiveLoginSession.expire = this.time;
             kv.delete(["users", this.Session]);
@@ -168,7 +168,7 @@ export class Session {
         }
         return this;
     }
-    getLogin() {
+    getLogin(): this {
         if (this.ActiveLoginSession) {
             this.Login = {
                 name: this.ActiveLoginSession.name,
