@@ -16,8 +16,9 @@ export abstract class Model<_model> {
         callback: () => Model<any>;
       };
     } = {},
+    protected cache: boolean = false,
   ) {
-    this.db = DB<_model>(this.table, this.fillable);
+    this.db = DB<_model>(this.table, this.fillable, "*", this.cache);
   }
   public item!: _model;
   protected relationship: Record<string, relation> = {};
