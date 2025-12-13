@@ -1,21 +1,20 @@
-import { mysql2 } from "../deps.ts";
 import { TheData } from "./type.ts";
 
-type QueryablePool = mysql2.Pool & {
-  query<T = unknown>(
-    sql: string,
-    values?: any[] | Record<string, unknown>,
-  ): Promise<[T, mysql2.FieldPacket[]]>;
+export type NativeQueryResult = {
+  rows: any;
+  fields?: any;
 };
 
-const connection = mysql2.createPool({
-  host: Deno.env.get("DBHOST"),
-  port: 3306,
-  user: Deno.env.get("DBUSER"),
-  password: Deno.env.get("DBPWD"),
-  database: Deno.env.get("DBNAME"),
-  connectionLimit: 4,
-}) as QueryablePool;
+export type NativeQueryFn = (
+  sql: string,
+  values?: any[] | Record<string, unknown>,
+) => Promise<NativeQueryResult>;
+
+let nativeQuery: NativeQueryFn | null = null;
+
+export function configureNativeQuery(fn: NativeQueryFn) {
+  nativeQuery = fn;
+}
 
 export class database<_model> {
   protected query = "";
@@ -26,10 +25,11 @@ export class database<_model> {
   protected limit: number | null = null;
   protected offset: number | null = null;
   protected __where: Record<string, any> = {
-    "AND": [],
-    "OR": [],
+    AND: [],
+    OR: [],
   };
   rows: any;
+
   constructor(
     protected table: string,
     protected fillable: string[] = [],
@@ -72,12 +72,14 @@ export class database<_model> {
 
   async exe(): Promise<this> {
     this.bind();
-    console.log(this.query);
-    console.log(this.placeholder);
-    [this.rows, this.field] = await connection.query(
-      this.query,
-      this.placeholder,
-    );
+    if (!nativeQuery) {
+      throw new Error(
+        "Native query function not configured. Call configureNativeQuery() with your FFI wrapper.",
+      );
+    }
+    const { rows, fields } = await nativeQuery(this.query, this.placeholder);
+    this.rows = rows;
+    this.field = fields;
     this.resetdata();
     return this;
   }
@@ -85,7 +87,7 @@ export class database<_model> {
   bind(): void {
     if (this.__where["AND"].length > 0) {
       if (this.enable) {
-        this.WhereQ({ "enable": ["1"] });
+        this.WhereQ({ enable: ["1"] });
       }
       this.query += " WHERE ";
       if (this.__where["AND"].length > 0) {
@@ -106,20 +108,22 @@ export class database<_model> {
 
   bindwhere(data: any, join: "AND" | "OR" = "AND"): void {
     this.query += (join == "AND" ? "" : " " + join + " ") +
-      data.map((value: any) => {
-        if (Array.isArray(value[2])) {
-          this.placeholder = [...this.placeholder, ...value[2]];
-          return ` \`${value[0]}\` ${value[1]} (${
-            value[2].map(() => "?").join(", ")
-          })`;
-        } else if (value[1] === "IN") {
-          this.placeholder = [...this.placeholder, value[2]];
-          return ` \`${value[0]}\` ${value[1]} (?) `;
-        } else {
-          this.placeholder = [...this.placeholder, value[2]];
-          return ` \`${value[0]}\` ${value[1]} ? `;
-        }
-      }).join(join);
+      data
+        .map((value: any) => {
+          if (Array.isArray(value[2])) {
+            this.placeholder = [...this.placeholder, ...value[2]];
+            return ` \`${value[0]}\` ${value[1]} (${
+              value[2].map(() => "?").join(", ")
+            })`;
+          } else if (value[1] === "IN") {
+            this.placeholder = [...this.placeholder, value[2]];
+            return ` \`${value[0]}\` ${value[1]} (?) `;
+          } else {
+            this.placeholder = [...this.placeholder, value[2]];
+            return ` \`${value[0]}\` ${value[1]} ? `;
+          }
+        })
+        .join(join);
   }
 
   many(): any {
@@ -171,7 +175,7 @@ export class database<_model> {
       this.query += ` ( ${Object.keys(data[0]).join(",")} ) VALUES `;
       const insert: any[] = [];
       data.forEach((i) => {
-        for (const [key, value] of Object.entries(i)) {
+        for (const [, value] of Object.entries(i)) {
           this.placeholder.push(value);
         }
         insert.push(`(${placeholder(Object.values(i).length).join(",")})`);
@@ -194,7 +198,7 @@ export class database<_model> {
 
   WhereQ(where: TheData, type: "AND" | "OR" = "AND"): this {
     for (const property in where) {
-      this.__where[type].push([property, "IN", where[property]]);
+      this.__where[type].push([property, "IN", (where as any)[property]]);
     }
     return this;
   }
@@ -242,17 +246,15 @@ export class database<_model> {
   }
 
   lastinserts(): Promise<any> {
-    //console.log(this.rows);
     const value = [];
     for (let i = 0; i < this.rows.affectedRows; i++) {
       // @ts-ignore
       value.push(this.rows.insertId + i);
     }
-    //console.log(value);
     return this.where({ id: value }).get();
   }
+
   lastinsert(): Promise<any> {
-    //console.log(this.rows);
     return this.where({ id: this.rows.insertId }).get(1);
   }
 
@@ -260,11 +262,12 @@ export class database<_model> {
     this.query = `TRUNCATE FROM ${this.table} `;
     return this;
   }
+
   resetdata(): void {
     this.placeholder = [];
     this.__where = {
-      "AND": [],
-      "OR": [],
+      AND: [],
+      OR: [],
     };
   }
 }
@@ -274,6 +277,7 @@ export const DB = <T>(
   fillable: string[],
   col?: string,
 ): database<T> => new database<T>(table, fillable, col);
+
 function placeholder(i: number) {
   const r: string[] = [];
   for (let n = 0; n < i; n++) {
