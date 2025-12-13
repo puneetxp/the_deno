@@ -3,11 +3,7 @@
 Let See Example
 
 ```ts
-import {
-  compile_routes,
-  response,
-  Router,
-} from "jsr:@puneetxp/the@0.1.0";
+import { compile_routes, response, Router } from "jsr:@puneetxp/the@0.1.0";
 const _routes = [{
   path: "/checlk",
   handler: () => response.JSON("s"),
@@ -21,7 +17,7 @@ Deno.serve(
   { port: 3333 },
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
-  }
+  },
 );
 ```
 
@@ -30,23 +26,27 @@ will assume it is empty.
 
 ## Data pass
 
-It is hardcore just ***/.+*** where you need you get in pramas
+It is hardcore just _**/.+**_ where you need you get in pramas
+
 #### in route
+
 ```ts
 const _routes = [{
   path: "/.+",
   handler: () => handler,
 }];
-
 ```
+
 #### in handler
 
-You get params as array and you can get by ***params[0]*** , ***parmas[1]***
+You get params as array and you can get by _**params[0]**_ , _**parmas[1]**_
+
 ```ts
 handler(req:Request, params :any[]){
   params[0];
 }
 ```
+
 ## Response
 
 Every Controller should return new Response.
@@ -60,7 +60,7 @@ Every Controller should return new Response.
 ```ts
 import { Session } from "./Session.ts";
 export class response {
-  //JSON return a Json response with session regenrate the cookie id 
+  //JSON return a Json response with session regenrate the cookie id
   //and set new cookie. as old one exipre after a request.
   static async JSON(
     body: any,
@@ -95,8 +95,6 @@ export class response {
 }
 ```
 
-
-
 ## Router
 
 When I am trying to using URLPattern I see such a performace hit so it seem
@@ -107,6 +105,7 @@ It have Guard and a Router Config file
 ## Config file
 
 First Check little simple route
+
 ```ts
 import {
   compile_routes,
@@ -131,16 +130,20 @@ export const _routes: _Routes = [
 
 ## Default
 
-Method default is "GET" and path is "".
-So if you leave it blank you should know what you will get.
+Method default is "GET" and path is "". So if you leave it blank you should know
+what you will get.
 
 ## Other Parameters
 
-For Netested child / group / crud can use. 
+For Netested child / group / crud can use.
 
 For Permission Guard , roles and islogin can used
+
 ### Handler
-We have two type of handler first for restrictive route and secound for public. with params
+
+We have two type of handler first for restrictive route and secound for public.
+with params
+
 ```ts
 // raw request passto handler
 export type CallbackHandler = (
@@ -150,23 +153,29 @@ export type CallbackHandler = (
 // Session pass to handler
 export type CallbackHandlerLogin = (
   session: Session,
-  params: any[]
+  params: any[],
 ) => Promise<Response>;
 ```
 
 ### Islogin
-***islogin*** default is ***false***
-if your route is login protected you should put
+
+_**islogin**_ default is _**false**_ if your route is login protected you should
+put
+
 ```ts
-  { path: "/login", handler: AuthController.Status, islogin: true },
-  { path: "/login", method: "POST", handler: AuthController.Login },
-  { path: "/logout", method: "GET", handler: AuthController.Logout, islogin: true },
-  { path: "/register", method: "POST", handler: AuthController.Register },
+{ path: "/login", handler: AuthController.Status, islogin: true },
+{ path: "/login", method: "POST", handler: AuthController.Login },
+{ path: "/logout", method: "GET", handler: AuthController.Logout, islogin: true },
+{ path: "/register", method: "POST", handler: AuthController.Register },
 ```
-when islogin is true we first check for cookie and if it is in session pass to handler. if not ***Error 401***
+
+when islogin is true we first check for cookie and if it is in session pass to
+handler. if not _**Error 401**_
 
 ### Guard
+
 You need to add Islogin to guard work.
+
 #### Guard are async function
 
 if there is string it will return string as error 403.
@@ -199,22 +208,25 @@ export const _routes: _Routes = [
   },
 ];
 ```
+
 ### Role function
+
 islogin need to true to function
 
 ```ts
-  {
-    islogin: true,
-    path: "/login",
-    roles:['manager'],
-    child:[{
-      roles:['isuper'],
-      path:'/roles',
-      handler: AuthController.Status
-    }]
-    guard: [AuthGuard],
-  }
+{
+  islogin: true,
+  path: "/login",
+  roles:['manager'],
+  child:[{
+    roles:['isuper'],
+    path:'/roles',
+    handler: AuthController.Status
+  }]
+  guard: [AuthGuard],
+}
 ```
+
 ## Group
 
 ### We can create a Group for curd
@@ -244,7 +256,8 @@ const user = [
 
 ### Shorthand for crud.
 
-Crud has it meaning here is 
+Crud has it meaning here is
+
 ```bash
 ['c','r','u','d','a','w','p'] 
 
@@ -256,43 +269,47 @@ a for read all
 w for read where
 p is add in bulk
 ```
+
 ```ts
-const user = { 
-  path: "/user", 
-  guard: [AuthGuard], 
-  class:UserController, 
-  crud: ['c','r','u','d','a','w','p']
-  };
+const user = {
+  path: "/user",
+  guard: [AuthGuard],
+  class: UserController,
+  crud: ["c", "r", "u", "d", "a", "w", "p"],
+};
 ```
 
-it is usuall work like 
+it is usuall work like
+
 ```ts
-    {
-      GET: [
-        ...user.crud.includes("a") &&
-            [{ path: "", handler: user.class.all }] || [],
-        ...user.crud.includes("r") &&
-            [{ path: "/.+", handler: user.class.show }] || [],
-      ],
-      POST: [
-        ...user.crud.includes("c") &&
-            [{ path: "", handler: user.class.store }] || [],
-        ...user.crud.includes("w") &&
-            [{ path: "where", handler: user.class.where }] || [],
-        ...user.crud.includes("u") &&
-            [{ path: "/.+", handler: user.class.update }] || [],
-      ],
-      PATCH: [
-        ...user.crud.includes("p") &&
-            [{ path: "", handler: user.class.upsert }] || [],
-      ],
-      DELETE: [
-        ...crud.crud.includes("d") &&
-        [{ path: "/.+", handler: crud.class.delete }] || []
-      ]
-    },
+{
+  GET: [
+    ...user.crud.includes("a") &&
+        [{ path: "", handler: user.class.all }] || [],
+    ...user.crud.includes("r") &&
+        [{ path: "/.+", handler: user.class.show }] || [],
+  ],
+  POST: [
+    ...user.crud.includes("c") &&
+        [{ path: "", handler: user.class.store }] || [],
+    ...user.crud.includes("w") &&
+        [{ path: "where", handler: user.class.where }] || [],
+    ...user.crud.includes("u") &&
+        [{ path: "/.+", handler: user.class.update }] || [],
+  ],
+  PATCH: [
+    ...user.crud.includes("p") &&
+        [{ path: "", handler: user.class.upsert }] || [],
+  ],
+  DELETE: [
+    ...crud.crud.includes("d") &&
+    [{ path: "/.+", handler: crud.class.delete }] || []
+  ]
+},
 ```
+
 Yes i made sin to create new Method where
+
 ### It compile with compile_routes()
 
 ```ts
@@ -307,80 +324,111 @@ export type Routes = Record<string, Route[]>;
 
 Router/Framework Flow
 
-
 ![deno router green](https://user-images.githubusercontent.com/19248561/214393928-a341f0ef-7647-43a7-850f-354a06aa1aa7.svg)
 
-
-
 ## Model and update
-
 
 Documentation Update Soon Example as below
 
 Model
+
 ```ts
-import { Model } from '../../repo/Model.ts';
-import { relation } from '../../repo/type.ts';
-import { Account_attribute$ } from './Account_attribute.ts';
-import { Account$ } from './Account.ts';
+import { Model } from "../../repo/Model.ts";
+import { relation } from "../../repo/type.ts";
+import { Account_attribute$ } from "./Account_attribute.ts";
+import { Account$ } from "./Account.ts";
 
 class Standard extends Model {
-  name = 'account_attribute_value';
-  table = 'account_attribute_values';
+  name = "account_attribute_value";
+  table = "account_attribute_values";
   nullable: string[] = ["id"];
-  fillable: string[] = ['name','enable','account_attribute_id','account_id'];
-  model: string[] = ["name","enable","id","created_at","updated_at","account_attribute_id","account_id"];
-  relationship:  Record<string,  relation>  = {'account_attribute':{'table':'account_attributes','name':'account_attribute_id','key':'id','callback':()=>Account_attribute$},'account':{'table':'accounts','name':'account_id','key':'id','callback':()=>Account$}};
+  fillable: string[] = ["name", "enable", "account_attribute_id", "account_id"];
+  model: string[] = [
+    "name",
+    "enable",
+    "id",
+    "created_at",
+    "updated_at",
+    "account_attribute_id",
+    "account_id",
+  ];
+  relationship: Record<string, relation> = {
+    "account_attribute": {
+      "table": "account_attributes",
+      "name": "account_attribute_id",
+      "key": "id",
+      "callback": () => Account_attribute$,
+    },
+    "account": {
+      "table": "accounts",
+      "name": "account_id",
+      "key": "id",
+      "callback": () => Account$,
+    },
+  };
 }
-export const Account_attribute_value$: Standard = new Standard().set('account_attribute_values');
+export const Account_attribute_value$: Standard = new Standard().set(
+  "account_attribute_values",
+);
 ```
 
 Controller
+
 ```ts
 import { response } from "../../../repo/response.ts";
 import { Session } from "../../../repo/Session.ts";
 import { Account_attribute_value$ } from "../../Model/Account_attribute_value.ts";
 export class SuperAccount_attribute_valueController {
-   static async all(session: Session){
-      const account_attribute_value = await Account_attribute_value$.all().Item;
-      return response.JSON({ account_attribute_value }, session);
-   }
-   static async where(session: Session) {
-      const req = await Account_attribute_value$.where(await session.req.json()).Item;
-      return response.JSON({ req }, session);
-   }
-   static async show(session: Session, param: string[]) {
-      const req= await Account_attribute_value$.find(param[0].toString()).Item;
-      return response.JSON({req}, session);
-   }
-   static async store(session: Session){
-      const account_attribute_value = await Account_attribute_value$.create([await session.req.json()]);
-      return response.JSON({ account_attribute_value }, session);
-   }
-   static async update(session: Session, param: string[]) {
-      const account_attribute_value = await Account_attribute_value$.update(
+  static async all(session: Session) {
+    const account_attribute_value = await Account_attribute_value$.all().Item;
+    return response.JSON({ account_attribute_value }, session);
+  }
+  static async where(session: Session) {
+    const req = await Account_attribute_value$.where(await session.req.json())
+      .Item;
+    return response.JSON({ req }, session);
+  }
+  static async show(session: Session, param: string[]) {
+    const req = await Account_attribute_value$.find(param[0].toString()).Item;
+    return response.JSON({ req }, session);
+  }
+  static async store(session: Session) {
+    const account_attribute_value = await Account_attribute_value$.create([
+      await session.req.json(),
+    ]);
+    return response.JSON({ account_attribute_value }, session);
+  }
+  static async update(session: Session, param: string[]) {
+    const account_attribute_value = await Account_attribute_value$.update(
       [{ id: [param[0]] }],
       await session.req.json(),
-      );
-      return response.JSON({ account_attribute_value }, session);
-   }
-   static async upsert(session: Session){
-      const account_attribute_value = await Account_attribute_value$.create(await session.req.json());
-      return response.JSON({ account_attribute_value }, session);
-   }
-   static async delete(session: Session, param: string[]) {
-      const account_attribute_value = await Account_attribute_value$.del([{ col: "id", value: [param[0]] }]);
-      return response.JSON({ account_attribute_value }, session);
-   }
+    );
+    return response.JSON({ account_attribute_value }, session);
+  }
+  static async upsert(session: Session) {
+    const account_attribute_value = await Account_attribute_value$.create(
+      await session.req.json(),
+    );
+    return response.JSON({ account_attribute_value }, session);
+  }
+  static async delete(session: Session, param: string[]) {
+    const account_attribute_value = await Account_attribute_value$.del([{
+      col: "id",
+      value: [param[0]],
+    }]);
+    return response.JSON({ account_attribute_value }, session);
+  }
 }
 ```
+
 ## benchmark
 
 This Framework can little hard but benefit in speed will unreal.
 
 On Our Framework
 
-Routing session and auth are good but testing is still lacking we are in still alpha
+Routing session and auth are good but testing is still lacking we are in still
+alpha
 
 ```bash
 Running 10s test @ http://localhost:3333

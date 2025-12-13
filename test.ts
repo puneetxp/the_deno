@@ -12,5 +12,5 @@ Deno.serve(
   { port: 9000 },
   async (req: Request): Promise<Response> => {
     return await new Router(routes).route(req);
-  }
+  },
 );
