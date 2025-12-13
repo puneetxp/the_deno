@@ -1,5 +1,5 @@
-import { Model } from "./Model.ts";
-import { Session } from "./Session.ts";
+import type { Model } from "./Model.ts";
+import type { Session } from "./Session.ts";
 
 export type CallbackHandler = (
   request: Session,
@@ -8,7 +8,8 @@ export type CallbackHandler = (
 
 export type guard = (req: Request) => Promise<false | string>;
 export type Routes = Record<string, Route[]>;
-export type TheData = Record<string, number | string | string[] | number[]>;
+type PrimitiveValue = string | number | boolean | Date | null;
+export type TheData = Record<string, PrimitiveValue | PrimitiveValue[]>;
 
 export interface Route {
   handler: CallbackHandler;
@@ -27,12 +28,12 @@ export interface Login {
   roles: string[];
 }
 
-export interface relation {
+export interface relation<_model = any> {
   table: string;
   name: string;
   key: string;
-  callback: () => Model<any>;
-  relation?: relation;
+  callback: () => Model<_model>;
+  relation?: relation<_model>;
 }
 export type _Routes = Route_Group_with[];
 

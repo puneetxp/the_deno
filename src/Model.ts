@@ -202,29 +202,29 @@ export abstract class Model<_model> {
     return this;
   }
 
-  public async create(data: TheData): Promise<this> {
+  public async create(data: Partial<_model>): Promise<this> {
     await this.db.LimitQ(null);
     await this.db.create(this.sanitize(data));
     return this;
   }
 
   // insert
-  public async insert(data: TheData[]): Promise<this> {
+  public async insert(data: Partial<_model>[]): Promise<this> {
     await this.db.insert(this.clean(data));
     return this;
   }
 
   // update
-  public async upsert(data: TheData[]): Promise<this> {
+  public async upsert(data: Partial<_model>[]): Promise<this> {
     await this.db.upsert(this.clean(data));
     return this;
   }
 
-  public async update(data: any): Promise<this> {
+  public async update(data: Partial<_model>): Promise<this> {
     await this.db.update(this.sanitize(data));
     return this;
   }
-  public async up(data: any[]): Promise<this> {
+  public async up(data: Partial<_model>[]): Promise<this> {
     this.db.UpSet();
     data.forEach((i) => this.db.UpdateQ(this.sanitize(i)));
     await this.db.exe();
@@ -245,17 +245,16 @@ export abstract class Model<_model> {
     return this.db.delete(where).exe();
   }
 
-  public clean(data: any[]): any[] {
-    return data.map((item) =>
-      Object.fromEntries(
-        Object.entries(item).filter(([key]) => this.fillable.includes(key)),
-      )
-    );
+  public clean(data: Partial<_model>[]): TheData[] {
+    return data.map((item) => this.sanitize(item));
   }
-  public sanitize(item: TheData): TheData {
-    return Object.fromEntries(
-      Object.entries(item).filter(([key]) => this.fillable.includes(key)),
-    );
+  public sanitize(item: Partial<_model>): TheData {
+    const sanitized: TheData = {};
+    for (const [key, value] of Object.entries(item)) {
+      if (!this.fillable.includes(key) || value === undefined) continue;
+      sanitized[key] = value as TheData[string];
+    }
+    return sanitized;
   }
 
   // default output
