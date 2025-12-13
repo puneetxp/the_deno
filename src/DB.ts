@@ -1,5 +1,8 @@
 import { mysql2 } from "../deps.ts";
 import { TheData } from "./type.ts";
+import { createCache, type KVCache } from "./KVCache.ts";
+
+export type DBAction = "SELECT" | "COUNT" | "INSERT" | "UPDATE" | "DELETE" | "TRUNCATE" | "RAW";
 
 type QueryablePool = mysql2.Pool & {
   query<T = unknown>(
@@ -29,12 +32,19 @@ export class database<_model> {
     "AND": [],
     "OR": [],
   };
+  protected action: DBAction = "RAW";
+  protected kv?: KVCache;
   rows: any;
   constructor(
     protected table: string,
     protected fillable: string[] = [],
     protected col: string = "*",
-  ) {}
+    protected cache: boolean = false,
+  ) {
+    if (this.cache) {
+      this.kv = createCache(this.table);
+    }
+  }
 
   raw(sql: string, bind: any[] = []): this {
     this.query = sql;
@@ -71,6 +81,16 @@ export class database<_model> {
   }
 
   async exe(): Promise<this> {
+    // Check cache for SELECT operations
+    if (this.cache && this.kv && this.action === "SELECT") {
+      const cached = await this.kv.getAll<_model>();
+      if (cached) {
+        this.rows = cached;
+        this.resetdata();
+        return this;
+      }
+    }
+
     this.bind();
     console.log(this.query);
     console.log(this.placeholder);
@@ -78,8 +98,23 @@ export class database<_model> {
       this.query,
       this.placeholder,
     );
+
+    // Cache SELECT results
+    if (this.cache && this.kv && this.action === "SELECT" && this.rows?.length) {
+      await this.kv.setAll(this.rows);
+    }
+
+    // Invalidate cache on write operations
+    if (this.cache && this.kv && this.isWriteAction()) {
+      await this.kv.invalidate();
+    }
+
     this.resetdata();
     return this;
+  }
+
+  private isWriteAction(): boolean {
+    return ["INSERT", "UPDATE", "DELETE", "TRUNCATE"].includes(this.action);
   }
 
   bind(): void {
@@ -207,26 +242,31 @@ export class database<_model> {
   }
 
   SelSet(col: string[] = ["*"]): this {
+    this.action = "SELECT";
     this.query = `SELECT ${col.join(" , ")} FROM ${this.table}`;
     return this;
   }
 
   CountSet(id = "*"): this {
-    this.query = `SELECT count(${id}) FROM this.table`;
+    this.action = "COUNT";
+    this.query = `SELECT count(${id}) FROM ${this.table}`;
     return this;
   }
 
   InSet(): this {
+    this.action = "INSERT";
     this.query = `INSERT INTO ${this.table}`;
     return this;
   }
 
   UpSet(): this {
+    this.action = "UPDATE";
     this.query = `UPDATE ${this.table} SET `;
     return this;
   }
 
   DelSet(): this {
+    this.action = "DELETE";
     this.query = `DELETE FROM ${this.table} `;
     return this;
   }
@@ -257,7 +297,8 @@ export class database<_model> {
   }
 
   truncate(): this {
-    this.query = `TRUNCATE FROM ${this.table} `;
+    this.action = "TRUNCATE";
+    this.query = `TRUNCATE TABLE ${this.table}`;
     return this;
   }
   resetdata(): void {
@@ -266,6 +307,11 @@ export class database<_model> {
       "AND": [],
       "OR": [],
     };
+    this.action = "RAW";
+  }
+
+  getAction(): DBAction {
+    return this.action;
   }
 }
 
@@ -273,7 +319,8 @@ export const DB = <T>(
   table: string,
   fillable: string[],
   col?: string,
-): database<T> => new database<T>(table, fillable, col);
+  cache?: boolean,
+): database<T> => new database<T>(table, fillable, col, cache);
 function placeholder(i: number) {
   const r: string[] = [];
   for (let n = 0; n < i; n++) {

@@ -10,3 +10,4 @@ export * from "./src/type.ts";
 export * from "./src/Session.ts";
 export * from "./src/thefun.ts";
 export * from "./src/DB.ts";
+export * from "./src/KVCache.ts";
