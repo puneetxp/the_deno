@@ -170,7 +170,10 @@ export abstract class Model<_model> {
   }
 
   public async first(select: string[] = ["*"]): Promise<_model | null> {
-    return await this.db.SelSet(select).first();
+    if (this.db.getAction() !== "SELECT") {
+      this.db.SelSet(select);
+    }
+    return await this.db.first();
   }
 
   // public _wherec(where: any[] = []): this {

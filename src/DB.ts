@@ -1,8 +1,19 @@
 import { mysql2 } from "../deps.ts";
-import { TheData } from "./type.ts";
+import type { TheData } from "./type.ts";
 import { createCache, type KVCache } from "./KVCache.ts";
 
-export type DBAction = "SELECT" | "COUNT" | "INSERT" | "UPDATE" | "DELETE" | "TRUNCATE" | "RAW";
+export type DBAction =
+  | "SELECT"
+  | "COUNT"
+  | "INSERT"
+  | "UPDATE"
+  | "DELETE"
+  | "TRUNCATE"
+  | "RAW";
+
+type CacheTarget =
+  | { scope: "all" }
+  | { scope: "id"; id: string | number };
 
 type QueryablePool = mysql2.Pool & {
   query<T = unknown>(
@@ -33,6 +44,7 @@ export class database<_model> {
     "OR": [],
   };
   protected action: DBAction = "RAW";
+  protected cacheTarget: CacheTarget | null = null;
   protected kv?: KVCache;
   rows: any;
   constructor(
@@ -53,11 +65,15 @@ export class database<_model> {
   }
 
   where(where: TheData): this {
-    return this.SelSet().WhereQ(where);
+    this.SelSet();
+    this.cacheTarget = null;
+    return this.WhereQ(where);
   }
 
   find(where: TheData, limit = 1): this {
-    return this.SelSet().WhereQ(where).LimitQ(limit);
+    this.SelSet();
+    this.cacheTarget = this.extractIdTarget(where);
+    return this.WhereQ(where).LimitQ(limit);
   }
 
   async create(data: TheData): Promise<database<_model>> {
@@ -81,13 +97,23 @@ export class database<_model> {
   }
 
   async exe(): Promise<this> {
-    // Check cache for SELECT operations
-    if (this.cache && this.kv && this.action === "SELECT") {
-      const cached = await this.kv.getAll<_model>();
-      if (cached) {
-        this.rows = cached;
-        this.resetdata();
-        return this;
+    const canUseCache = this.cache && this.kv &&
+      this.action === "SELECT" && this.cacheTarget;
+    if (canUseCache && this.cacheTarget) {
+      if (this.cacheTarget.scope === "all") {
+        const cached = await this.kv!.getAll<_model>();
+        if (cached) {
+          this.rows = cached;
+          this.resetdata();
+          return this;
+        }
+      } else {
+        const cached = await this.kv!.get<_model>(this.cacheTarget.id);
+        if (cached) {
+          this.rows = [cached];
+          this.resetdata();
+          return this;
+        }
       }
     }
 
@@ -99,14 +125,19 @@ export class database<_model> {
       this.placeholder,
     );
 
-    // Cache SELECT results
-    if (this.cache && this.kv && this.action === "SELECT" && this.rows?.length) {
-      await this.kv.setAll(this.rows);
-    }
-
-    // Invalidate cache on write operations
-    if (this.cache && this.kv && this.isWriteAction()) {
-      await this.kv.invalidate();
+    if (this.cache && this.kv) {
+      if (this.action === "SELECT" && this.cacheTarget) {
+        if (this.cacheTarget.scope === "all" && this.rows?.length) {
+          await this.kv.setAll(this.rows);
+        } else if (
+          this.cacheTarget.scope === "id" && this.rows && this.rows[0]
+        ) {
+          await this.kv.set(this.cacheTarget.id, this.rows[0]);
+        }
+      }
+      if (this.isWriteAction()) {
+        await this.kv.invalidate();
+      }
     }
 
     this.resetdata();
@@ -231,6 +262,7 @@ export class database<_model> {
     for (const property in where) {
       this.__where[type].push([property, "IN", where[property]]);
     }
+    this.clearCacheTargetUnlessId();
     return this;
   }
 
@@ -238,11 +270,13 @@ export class database<_model> {
     where.forEach((element) => {
       this.__where[type].push([element[0], element[1], element[2]]);
     });
+    this.cacheTarget = null;
     return this;
   }
 
   SelSet(col: string[] = ["*"]): this {
     this.action = "SELECT";
+    this.cacheTarget = { scope: "all" };
     this.query = `SELECT ${col.join(" , ")} FROM ${this.table}`;
     return this;
   }
@@ -273,11 +307,17 @@ export class database<_model> {
 
   LimitQ(limit: number | null): this {
     this.limit = limit;
+    if (limit !== null && limit !== undefined && this.cacheTarget?.scope === "all") {
+      this.cacheTarget = null;
+    }
     return this;
   }
 
   OffsetQ(Offset: number): this {
     this.offset = Offset;
+    if (Offset && this.cacheTarget?.scope === "all") {
+      this.cacheTarget = null;
+    }
     return this;
   }
 
@@ -298,6 +338,7 @@ export class database<_model> {
 
   truncate(): this {
     this.action = "TRUNCATE";
+    this.cacheTarget = null;
     this.query = `TRUNCATE TABLE ${this.table}`;
     return this;
   }
@@ -308,10 +349,30 @@ export class database<_model> {
       "OR": [],
     };
     this.action = "RAW";
+    this.cacheTarget = null;
   }
 
   getAction(): DBAction {
     return this.action;
+  }
+
+  protected extractIdTarget(where: TheData): CacheTarget | null {
+    const keys = Object.keys(where);
+    if (keys.length !== 1 || keys[0] !== "id") {
+      return null;
+    }
+    const value = where["id"];
+    const id = Array.isArray(value) ? value[0] : value;
+    if (typeof id === "string" || typeof id === "number") {
+      return { scope: "id", id };
+    }
+    return null;
+  }
+
+  protected clearCacheTargetUnlessId(): void {
+    if (!this.cacheTarget || this.cacheTarget.scope !== "id") {
+      this.cacheTarget = null;
+    }
   }
 }
 
