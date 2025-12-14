@@ -188,6 +188,7 @@ export abstract class Model<_model> {
 
   // single
   public async find(value: any, key: string = "id"): Promise<this> {
+    this.reset();
     this.item = await this.db.find({ [key]: value }).first();
     this.singular = true;
     return this;
