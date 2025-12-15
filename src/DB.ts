@@ -307,7 +307,9 @@ export class database<_model> {
 
   LimitQ(limit: number | null): this {
     this.limit = limit;
-    if (limit !== null && limit !== undefined && this.cacheTarget?.scope === "all") {
+    if (
+      limit !== null && limit !== undefined && this.cacheTarget?.scope === "all"
+    ) {
       this.cacheTarget = null;
     }
     return this;
