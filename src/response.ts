@@ -19,13 +19,14 @@ export class response {
     header?: Record<string, string | null>,
   ): Response {
     const origin = session?.req.headers.get("origin") || undefined;
+    const cookieHeader = session?.returnCookie?.();
     return new Response(JSON.stringify(body), {
       status: status || 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
         ...getCorsHeaders(origin),
         ...header,
-        ...(session && session.returnCookie()),
+        ...(cookieHeader ?? {}),
       },
     });
   }
@@ -36,13 +37,14 @@ export class response {
     header?: Record<string, string | null>,
   ): Response {
     const origin = session?.req.headers.get("origin") || undefined;
+    const cookieHeader = session?.reactiveSession().returnCookie?.();
     return new Response(JSON.stringify(body), {
       status: status || 200,
       headers: {
         "content-type": "application/json; charset=utf-8",
         ...getCorsHeaders(origin),
         ...header,
-        ...(session && session.reactiveSession().returnCookie()),
+        ...(cookieHeader ?? {}),
       },
     });
   }

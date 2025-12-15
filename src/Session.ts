@@ -163,6 +163,9 @@ export class Session {
   }
 
   returnCookie(): { "set-cookie"?: string } | undefined {
+    if (typeof this.Session !== "string" || this.Session.length === 0) {
+      return;
+    }
     const headers = new Headers();
     setCookie(headers, sessionCookie(this.Session, this.time));
     const cookie = headers.get("set-cookie");
