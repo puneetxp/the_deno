@@ -18,33 +18,58 @@ export class Router {
   }
 
   async checkPermission(): Promise<Response> {
-    if (this.route?.islogin) {
-      const login = await this.login(this.route);
-      if (login.islogin) {
-        if (login.active_session) {
-          return await this.route.handler(
-            login.active_session,
-            this.params,
-          );
+    try {
+      if (this.route?.islogin) {
+        const login = await this.login(this.route);
+        if (login.islogin) {
+          if (login.active_session) {
+            return await this.route.handler(
+              login.active_session,
+              this.params,
+            );
+          } else {
+            return await response.JSONF(
+              "Session Error",
+              {},
+              401,
+              this.req,
+            );
+          }
         } else {
           return await response.JSONF(
-            "Session Error",
+            login.error,
             {},
             401,
             this.req,
           );
         }
-      } else {
-        return await response.JSONF(
-          login.error,
-          {},
-          401,
-          this.req,
-        );
       }
+      return await this.route?.handler(new Session(this.req), this.params) ||
+        await response.JSONF("Handler not found", {}, 500, this.req);
+    } catch (error) {
+      // Log the error to help with debugging
+      const timestamp = new Date().toISOString();
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const url = this.req.url;
+      
+      console.error(`${timestamp}`);
+      console.error(url);
+      console.error(`[HANDLER ERROR] ${errorMessage}`);
+      
+      if (error instanceof Error && error.stack) {
+        console.error(error.stack);
+      } else {
+        console.error(error);
+      }
+      
+      // Return a 500 error response instead of crashing
+      return await response.JSONF(
+        "An internal server error occurred. Please try again later.",
+        {},
+        500,
+        this.req,
+      );
     }
-    return await this.route?.handler(new Session(this.req), this.params) ||
-      await response.JSONF("Handler not found", {}, 500, this.req);
   }
 
   async login(
