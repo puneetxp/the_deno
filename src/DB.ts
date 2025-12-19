@@ -117,31 +117,45 @@ export class database<_model> {
       }
     }
 
-    this.bind();
-    console.log(this.query);
-    console.log(this.placeholder);
-    [this.rows, this.field] = await connection.query(
-      this.query,
-      this.placeholder,
-    );
+    try {
+      this.bind();
+      console.log(this.query);
+      console.log(this.placeholder);
+      [this.rows, this.field] = await connection.query(
+        this.query,
+        this.placeholder,
+      );
 
-    if (this.cache && this.kv) {
-      if (this.action === "SELECT" && this.cacheTarget) {
-        if (this.cacheTarget.scope === "all" && this.rows?.length) {
-          await this.kv.setAll(this.rows);
-        } else if (
-          this.cacheTarget.scope === "id" && this.rows && this.rows[0]
-        ) {
-          await this.kv.set(this.cacheTarget.id, this.rows[0]);
+      if (this.cache && this.kv) {
+        if (this.action === "SELECT" && this.cacheTarget) {
+          if (this.cacheTarget.scope === "all" && this.rows?.length) {
+            await this.kv.setAll(this.rows);
+          } else if (
+            this.cacheTarget.scope === "id" && this.rows && this.rows[0]
+          ) {
+            await this.kv.set(this.cacheTarget.id, this.rows[0]);
+          }
+        }
+        if (this.isWriteAction()) {
+          await this.kv.invalidate();
         }
       }
-      if (this.isWriteAction()) {
-        await this.kv.invalidate();
-      }
-    }
 
-    this.resetdata();
-    return this;
+      this.resetdata();
+      return this;
+    } catch (error) {
+      // Log the error with context
+      console.error(`[DATABASE ERROR] Query failed:`);
+      console.error(`Query: ${this.query}`);
+      console.error(`Params: ${JSON.stringify(this.placeholder)}`);
+      console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // Reset data to prevent corrupted state
+      this.resetdata();
+      
+      // Re-throw the error so it can be handled by the controller
+      throw error;
+    }
   }
 
   private isWriteAction(): boolean {
