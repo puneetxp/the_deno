@@ -253,7 +253,13 @@ export abstract class Model<_model> {
     const sanitized: TheData = {};
     for (const [key, value] of Object.entries(item)) {
       if (!this.fillable.includes(key) || value === undefined) continue;
-      sanitized[key] = value as TheData[string];
+      
+      // Truncate phone field to 14 characters to match database schema
+      if (key === 'phone' && typeof value === 'string' && value.length > 14) {
+        sanitized[key] = value.substring(0, 14) as TheData[string];
+      } else {
+        sanitized[key] = value as TheData[string];
+      }
     }
     return sanitized;
   }
