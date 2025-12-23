@@ -148,11 +148,13 @@ export class database<_model> {
       console.error(`[DATABASE ERROR] Query failed:`);
       console.error(`Query: ${this.query}`);
       console.error(`Params: ${JSON.stringify(this.placeholder)}`);
-      console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-      
+      console.error(
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+
       // Reset data to prevent corrupted state
       this.resetdata();
-      
+
       // Re-throw the error so it can be handled by the controller
       throw error;
     }

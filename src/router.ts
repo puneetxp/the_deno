@@ -49,19 +49,21 @@ export class Router {
     } catch (error) {
       // Log the error to help with debugging
       const timestamp = new Date().toISOString();
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
       const url = this.req.url;
-      
+
       console.error(`${timestamp}`);
       console.error(url);
       console.error(`[HANDLER ERROR] ${errorMessage}`);
-      
+
       if (error instanceof Error && error.stack) {
         console.error(error.stack);
       } else {
         console.error(error);
       }
-      
+
       // Return a 500 error response instead of crashing
       return await response.JSONF(
         "An internal server error occurred. Please try again later.",
@@ -114,11 +116,13 @@ export class Router {
   }
 
   URLPattern(): this {
+    console.log(`[ROUTER] Matching ${this.req.method} ${this.req.url}`);
     for (const r of this.routes_list[this.req.method]) {
       const match = r.route?.exec(this.req.url);
       if (match != null) {
         this.route = r;
         this.params = match;
+        break;
       }
     }
     return this;
@@ -251,12 +255,16 @@ function crud(
             [{ path: "", handler: crud.class.store }] || [],
         ...crud.crud.includes("w") &&
             [{ path: "/where", handler: crud.class.where }] || [],
-        ...crud.crud.includes("u") &&
-            [{ path: "/:id", handler: crud.class.update }] || [],
       ],
       PATCH: [
         ...crud.crud.includes("p") &&
             [{ path: "", handler: crud.class.upsert }] || [],
+        ...crud.crud.includes("u") &&
+            [{ path: "/:id", handler: crud.class.update }] || [],
+      ],
+      PUT: [
+        ...crud.crud.includes("u") &&
+            [{ path: "/:id", handler: crud.class.update }] || [],
       ],
       DELETE: [
         ...crud.crud.includes("d") &&
