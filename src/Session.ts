@@ -1,4 +1,5 @@
-import { Cookie, deleteCookie, setCookie } from "../deps.ts";
+import type { Cookie } from "../deps.ts";
+import { deleteCookie, setCookie } from "../deps.ts";
 
 interface Active_role {
   updated_at: Date;
@@ -25,7 +26,7 @@ interface User {
   created_at: Date;
   updated_at: Date;
 }
-import { Login } from "./type.ts";
+import type { Login } from "./type.ts";
 interface LoginSession {
   books: number[];
   book: number;
@@ -73,7 +74,7 @@ export class Session {
       this.Session = this.cookie.PHPSESSID;
     }
   }
-  async cleansession(): Promise<this> {
+  cleansession(): this {
     sessions = sessions.filter((i) => i.expire > new Date());
     return this;
   }
@@ -142,12 +143,17 @@ export class Session {
     this.time.setTime(this.time.getTime() + this.expirein * 60 * 1000);
   }
   SessionRoles(Role: Role[], Active_Role: Active_role[]): string[] {
-    return Role.filter((i) => Active_Role.filter((a) => a.role_id == i.id)).map(
+    return Role.filter((i) => Active_Role.some((a) => a.role_id === i.id)).map(
       (i) => i.name,
     );
   }
   async addSession(LoginSession: LoginSession) {
-    await kv.set(["users", LoginSession.session_id], LoginSession);
+    const expireIn = sessionExpireInMs(LoginSession);
+    await kv.set(
+      ["users", LoginSession.session_id],
+      LoginSession,
+      expireIn ? { expireIn } : undefined,
+    );
   }
   removeSession(): void {
     kv.delete(["users", this.Session]);
@@ -179,9 +185,11 @@ export class Session {
     if (this.ActiveLoginSession) {
       this.ActiveLoginSession.expire = this.time;
       kv.delete(["users", this.Session]);
+      const expireIn = sessionExpireInMs(this.ActiveLoginSession);
       kv.set(
         ["users", this.ActiveLoginSession.session_id],
         this.ActiveLoginSession,
+        expireIn ? { expireIn } : undefined,
       );
     }
     return this;
@@ -197,4 +205,16 @@ export class Session {
     }
     return this;
   }
+}
+
+function sessionExpireInMs(session: LoginSession): number | undefined {
+  if (!session.expire) {
+    return;
+  }
+  const expireTime =
+    session.expire instanceof Date
+      ? session.expire.getTime()
+      : new Date(session.expire).getTime();
+  const diff = expireTime - Date.now();
+  return diff > 0 ? diff : 0;
 }
