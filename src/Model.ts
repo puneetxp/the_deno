@@ -36,6 +36,11 @@ export abstract class Model<_model> {
     return this;
   }
 
+  public clone(): this {
+    const ModelClass = this.constructor as new () => Model<_model>;
+    return new ModelClass() as this;
+  }
+
   public async paginate(
     pageNumber: number = 1,
     pageItems: number = 25,
@@ -96,7 +101,7 @@ export abstract class Model<_model> {
     return pages;
   }
 
-  public async all(param?: URLPatternResult): Promise<this> {
+  public async all(param?: URLPatternResult, where?: TheData): Promise<this> {
     const searchInput = param?.search?.input ?? "";
     const searchParams = new URLSearchParams(
       searchInput.startsWith("?") ? searchInput.slice(1) : searchInput,
@@ -110,6 +115,9 @@ export abstract class Model<_model> {
           ["updated_at", ">", latest],
         ]).get();
       }
+    }
+    if (where) {
+      this.where(where);
     }
     return await this.get();
   }
@@ -204,19 +212,23 @@ export abstract class Model<_model> {
   }
 
   public async create(data: Partial<_model>): Promise<this> {
+    this.reset();
     await this.db.LimitQ(null);
     await this.db.create(this.sanitize(data));
+    await this.db.resetdata();
     return this;
   }
 
   // insert
   public async insert(data: Partial<_model>[]): Promise<this> {
+    this.reset();
     await this.db.insert(this.clean(data));
     return this;
   }
 
   // update
   public async upsert(data: Partial<_model>[]): Promise<this> {
+    this.reset();
     await this.db.upsert(this.clean(data));
     return this;
   }
