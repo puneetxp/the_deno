@@ -211,10 +211,9 @@ function sessionExpireInMs(session: LoginSession): number | undefined {
   if (!session.expire) {
     return;
   }
-  const expireTime =
-    session.expire instanceof Date
-      ? session.expire.getTime()
-      : new Date(session.expire).getTime();
+  const expireTime = session.expire instanceof Date
+    ? session.expire.getTime()
+    : new Date(session.expire).getTime();
   const diff = expireTime - Date.now();
   return diff > 0 ? diff : 0;
 }
