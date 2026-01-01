@@ -28,6 +28,7 @@ function detectSocketPath(): string | null {
 
   const candidatesByOS: Record<string, string[]> = {
     linux: [
+      "/run/mysqld/mysqld.sock",
       "/var/run/mysqld/mysqld.sock",
       "/var/lib/mysql/mysql.sock",
     ],
