@@ -22,13 +22,52 @@ type QueryablePool = mysql2.Pool & {
   ): Promise<[T, mysql2.FieldPacket[]]>;
 };
 
+function detectSocketPath(): string | null {
+  const explicit = Deno.env.get("DBSOCKET");
+  if (explicit) return explicit;
+
+  const candidatesByOS: Record<string, string[]> = {
+    linux: [
+      "/var/run/mysqld/mysqld.sock",
+      "/var/lib/mysql/mysql.sock",
+    ],
+    darwin: [
+      "/tmp/mysql.sock",
+      "/opt/homebrew/var/mysql/mysql.sock",
+      "/usr/local/var/mysql/mysql.sock",
+    ],
+  };
+
+  const candidates = candidatesByOS[Deno.build.os] ?? [];
+  for (const candidate of candidates) {
+    try {
+      const stat = Deno.statSync(candidate);
+      if (stat.isSocket) {
+        return candidate;
+      }
+    } catch {
+      // ignore missing paths
+    }
+  }
+
+  return null;
+}
+
+const socketPath = detectSocketPath();
+const poolConfig = socketPath
+  ? {
+    socketPath,
+  }
+  : {
+    host: Deno.env.get("DBHOST"),
+    port: Number(Deno.env.get("DBPORT") ?? "3306"),
+  };
 const connection = mysql2.createPool({
-  host: Deno.env.get("DBHOST"),
-  port: 3306,
+  ...poolConfig,
   user: Deno.env.get("DBUSER"),
   password: Deno.env.get("DBPWD"),
   database: Deno.env.get("DBNAME"),
-  connectionLimit: 4,
+  connectionLimit: Number(Deno.env.get("DBPOOL") ?? "4"),
 }) as QueryablePool;
 
 export class database<_model> {

@@ -1,6 +1,7 @@
 import { database, DB } from "./DB.ts";
-import { Session } from "./Session.ts";
-import { relation, TheData } from "./type.ts";
+import type { relation, TheData } from "./type.ts";
+import { buildJoinQuery } from "./model/sqlBuilder.ts";
+import { runQuery } from "./model/executor.ts";
 export abstract class Model<_model> {
   constructor(
     protected name: string = "",
@@ -350,6 +351,69 @@ export abstract class Model<_model> {
         .get());
     }
     return null;
+  }
+
+  /**
+   * Eager load relations using SQL JOINs instead of multiple round-trips and JS-side O(n²) filtering.
+   * `relations` should be keys from the model's `relations` map.
+   * Optional `where` applies to the base table (AND conditions).
+   */
+  public async withJoin(
+    relations: string[],
+    where?: Record<string, any>,
+  ): Promise<this> {
+    if (!relations?.length) return this;
+
+    const baseAlias = "b";
+    const joins = relations.map((relName) => {
+      const rel = this.relations[relName];
+      if (!rel) return null;
+      const relModel = rel.callback();
+      return {
+        alias: `r_${relName}`,
+        table: rel.table,
+        localKey: rel.name,
+        foreignKey: rel.key,
+        cols: (relModel as any)?.model ?? [],
+        prefix: relName,
+      };
+    }).filter(Boolean) as Array<{
+      alias: string;
+      table: string;
+      localKey: string;
+      foreignKey: string;
+      cols?: string[];
+      prefix?: string;
+    }>;
+
+    const { sql, placeholders } = buildJoinQuery(
+      this.table,
+      baseAlias,
+      this.model,
+      joins,
+      where,
+    );
+
+    const rows = await runQuery(this.db, sql, placeholders);
+    this.items = this.hydrateJoinedRows(rows as any[], relations);
+    return this;
+  }
+
+  private hydrateJoinedRows(rows: any[], relations: string[]): any[] {
+    return rows.map((row) => {
+      const base: any = {};
+      const relData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(row)) {
+        const [rel, col] = key.split("__");
+        if (!col || !relations.includes(rel)) {
+          base[key] = value;
+        } else {
+          relData[rel] = relData[rel] ?? {};
+          relData[rel][col] = value;
+        }
+      }
+      return { ...base, ...relData };
+    });
   }
 
   //bindintosomepattern
