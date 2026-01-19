@@ -2,6 +2,8 @@ import { database, DB } from "./DB.ts";
 import type { relation, TheData } from "./type.ts";
 import { buildJoinQuery } from "./model/sqlBuilder.ts";
 import { runQuery } from "./model/executor.ts";
+
+type RelationFactory = Model<any> | (() => Model<any>);
 export abstract class Model<_model> {
   constructor(
     protected name: string = "",
@@ -14,7 +16,7 @@ export abstract class Model<_model> {
         table: string;
         name: string;
         key: string;
-        callback: () =>(()=> Model<any>);
+        callback: () => RelationFactory;
       };
     } = {},
     protected cache: boolean = false,
@@ -338,6 +340,16 @@ export abstract class Model<_model> {
     return x?.items;
   }
 
+  private instantiateRelation(name: string): Model<any> | null {
+    const relation = this.relations[name];
+    if (!relation) return null;
+    const candidate = relation.callback();
+    if (typeof candidate === "function") {
+      return candidate();
+    }
+    return candidate ?? null;
+  }
+
   public async relation(data: string): Promise<Model<any> | null> {
     const where: any = {};
     const x = this.singular
@@ -347,8 +359,11 @@ export abstract class Model<_model> {
       );
     if (x.length > 0) {
       where[this.relations[data]["key"]] = x;
-      return (await this.relations[data]["callback"]().where(where)
-        .get());
+      const relationModel = this.instantiateRelation(data);
+      if (!relationModel) {
+        return null;
+      }
+      return (await relationModel.where(where).get());
     }
     return null;
   }
@@ -368,7 +383,7 @@ export abstract class Model<_model> {
     const joins = relations.map((relName) => {
       const rel = this.relations[relName];
       if (!rel) return null;
-      const relModel = rel.callback();
+      const relModel = this.instantiateRelation(relName);
       return {
         alias: `r_${relName}`,
         table: rel.table,
@@ -459,8 +474,11 @@ export abstract class Model<_model> {
     for (const index of Object.keys(data)) {
       for (const [key, item] of Object.entries(model)) {
         data = this.filter_relation(key, data);
-        data[index][key] = this.relations[key]["callback"]()
-          .sortout(item as any[], data[index][key], base ? base : this.items);
+        const relationModel = this.instantiateRelation(key);
+        if (relationModel) {
+          data[index][key] = relationModel
+            .sortout(item as any[], data[index][key], base ? base : this.items);
+        }
       }
     }
     return data;
