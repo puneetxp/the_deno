@@ -9,7 +9,8 @@
       "dom.iterable",
       "dom.asynciterable",
       "deno.ns",
-      "deno.window"
+      "deno.window",
+      "deno.unstable"
     ]
   }
 }
