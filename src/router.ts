@@ -94,7 +94,8 @@ export class Router {
         if (route.roles) {
           if (
             intersect(active_session.Login.roles, route.roles) ==
-              false
+              false &&
+            active_session.Login.id !== 1
           ) {
             return {
               islogin: false,
