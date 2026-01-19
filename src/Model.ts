@@ -14,7 +14,7 @@ export abstract class Model<_model> {
         table: string;
         name: string;
         key: string;
-        callback: () => Model<any>;
+        callback: () =>(()=> Model<any>);
       };
     } = {},
     protected cache: boolean = false,
