@@ -159,8 +159,6 @@ export class database<_model> {
 
     try {
       this.bind();
-      console.log(this.query);
-      console.log(this.placeholder);
       [this.rows, this.field] = await connection.query(
         this.query,
         this.placeholder,
