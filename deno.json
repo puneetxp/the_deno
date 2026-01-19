@@ -1,0 +1,15 @@
+{
+  "name": "@puneetxp/the",
+  "version": "0.1.9",
+  "license": "MIT",
+  "exports": "./mod.ts",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "dom.asynciterable",
+      "deno.ns",
+      "deno.window"
+    ]
+  }
+}

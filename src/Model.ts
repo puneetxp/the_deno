@@ -429,7 +429,7 @@ export abstract class Model<_model> {
     return this;
   }
 
-  private sortout(relation: any[], data: any, base: any = null): any {
+  public sortout(relation: any[], data: any, base: any = null): any {
     for (const item of relation) {
       data = Array.isArray(item)
         ? this.filter_relations(item, data, base)
