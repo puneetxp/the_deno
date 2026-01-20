@@ -26,6 +26,7 @@ export interface Login {
   email: string;
   id: number;
   roles: string[];
+  telegram_id?: string | null;
 }
 
 export interface relation<_model = any> {

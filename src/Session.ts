@@ -25,6 +25,7 @@ interface User {
   id: number;
   created_at: Date;
   updated_at: Date;
+  telegram_id: string | null;
 }
 import type { Login } from "./type.ts";
 interface LoginSession {
@@ -38,6 +39,7 @@ interface LoginSession {
   roles: string[];
   ip: string | null;
   agent: string | null;
+  telegram_id: string | null;
 }
 
 let sessions: LoginSession[] = [];
@@ -115,6 +117,7 @@ export class Session {
       roles: this.SessionRoles(Roles, Active_Role),
       ip: this.req.headers.get("x-forwarded-for"),
       agent: this.req.headers.get("user-agent"),
+      telegram_id: User.telegram_id ?? null,
     };
     this.addSession(this.ActiveLoginSession);
   }
@@ -201,6 +204,7 @@ export class Session {
         email: this.ActiveLoginSession.email,
         id: this.ActiveLoginSession.id,
         roles: this.ActiveLoginSession.roles,
+        telegram_id: this.ActiveLoginSession.telegram_id,
       };
     }
     return this;
