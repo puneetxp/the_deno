@@ -270,6 +270,12 @@ function crud(
       DELETE: [
         ...crud.crud.includes("d") &&
             [{ path: "/:id", handler: crud.class.delete }] || [],
+        ...crud.crud.includes("d") &&
+            [{
+              path: "/perma_delete/:id",
+              handler: crud.class.perma_delete,
+              roles: ["isuper"],
+            }] || [],
       ],
     },
     path,
@@ -341,7 +347,7 @@ function compile_group(
             : undefined),
           ...(roles
             ? (e.roles ? { roles: [...roles, ...e.roles] } : { roles })
-            : undefined),
+            : (e.roles ? { roles: [...e.roles] } : undefined)),
           ...((e.islogin && { islogin: e.islogin }) ||
             (islogin && { islogin })),
         }];

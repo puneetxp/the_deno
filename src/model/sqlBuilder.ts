@@ -43,7 +43,8 @@ export function buildJoinQuery(
       join.prefix,
     );
     selectParts.push(...relSelect);
-    joinSQL += ` LEFT JOIN ${join.table} ${join.alias} ON ${baseAlias}.\`${join.localKey}\` = ${join.alias}.\`${join.foreignKey}\``;
+    joinSQL +=
+      ` LEFT JOIN ${join.table} ${join.alias} ON ${baseAlias}.\`${join.localKey}\` = ${join.alias}.\`${join.foreignKey}\``;
   }
 
   const whereClauses: string[] = [];
@@ -66,8 +67,9 @@ export function buildJoinQuery(
     ? ` WHERE ${whereClauses.join(" AND ")}`
     : "";
 
-  const sql =
-    `SELECT ${selectParts.join(", ")} FROM ${baseTable} ${baseAlias}${joinSQL}${whereSQL}`;
+  const sql = `SELECT ${
+    selectParts.join(", ")
+  } FROM ${baseTable} ${baseAlias}${joinSQL}${whereSQL}`;
 
   return { sql, placeholders, selectParts };
 }
