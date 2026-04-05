@@ -261,6 +261,15 @@ export abstract class Model<_model> {
     return this.db.delete(where).exe();
   }
 
+  public softDelete(
+    where: any,
+    field: string = "deleted_at",
+  ): Promise<database<_model>> {
+    return this.db.UpSet().WhereQ(where).rawsql(
+      `UPDATE ${this.table} SET \`${field}\` = NOW()`,
+    ).exe();
+  }
+
   public clean(data: Partial<_model>[]): TheData[] {
     return data.map((item) => this.sanitize(item));
   }
