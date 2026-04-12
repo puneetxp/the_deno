@@ -18,3 +18,8 @@ export function intersect(a: string[], b: string[]): boolean {
   }
   return false;
 }
+
+export function as_on(date: string | null | undefined): string | null {
+  if (!date) return null;
+  return `${date.substring(0, 10)} 23:59:59`;
+}
