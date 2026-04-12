@@ -77,6 +77,73 @@ export class Router {
   async login(
     route: Route,
   ): Promise<{ islogin: boolean; error: any; active_session?: Session }> {
+    const authHeader = this.req.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      try {
+        const { Api_key$ } = await import("../../App/Model/Api_key.ts");
+        const { Book$ } = await import("../../App/Model/Book.ts");
+        const { User$ } = await import("../../App/Model/User.ts");
+
+        const keyReq = await Api_key$().where({ key_value: token }).get();
+        if (keyReq.items.length > 0 && !keyReq.items[0].deleted_at) {
+          const api_key = keyReq.items[0];
+          const bookReq = await Book$().find(api_key.book_id);
+          
+          if (bookReq.item && !bookReq.item.deleted_at) {
+            const book = bookReq.item as any;
+            const userReq = await User$().find(book.user_id);
+            
+            if (userReq.item && !userReq.item.deleted_at && userReq.item.enable) {
+              const user = userReq.item as any;
+              
+              const session = new Session(this.req);
+              session.ActiveLoginSession = {
+                books: [book.id],
+                book: book.id,
+                session_id: "apikey_" + api_key.id,
+                name: user.name,
+                email: user.email,
+                expire: new Date(Date.now() + 1000 * 60 * 60 * 24),
+                id: user.id,
+                roles: ["islogin"], // Default role granting basic access
+                ip: this.req.headers.get("x-forwarded-for"),
+                agent: this.req.headers.get("user-agent"),
+                telegram_id: user.telegram_id ?? null,
+              };
+              session.getLogin();
+              
+              // Verify route guards/roles explicitly like the cookie flow does
+              if (route.guard) {
+                for (const element of route.guard) {
+                  const E403 = await element(this.req);
+                  if (E403) return { islogin: false, error: E403 };
+                }
+              }
+              if (route.roles && intersect(session.Login.roles, route.roles) == false && session.Login.id !== 1) {
+                return { islogin: false, error: "Your role is limited via API Key" };
+              }
+
+              // Fire and forget updating the last_used_at timestamp
+              Api_key$().where({ id: [api_key.id] }).update({ last_used_at: new Date() }).catch(e => console.error(e));
+
+              return {
+                islogin: true,
+                error: null,
+                active_session: session,
+              };
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[API Key Auth Error]", e);
+      }
+      return {
+        islogin: false,
+        error: "Invalid or expired API Key",
+      };
+    }
+
     const cookie = getCookies(this.req.headers);
     if (cookie.PHPSESSID) {
       const active_session =
@@ -264,6 +331,8 @@ function crud(
             [{ path: "/:id", handler: crud.class.update }] || [],
       ],
       PUT: [
+        ...crud.crud.includes("p") &&
+            [{ path: "", handler: crud.class.upsert }] || [],
         ...crud.crud.includes("u") &&
             [{ path: "/:id", handler: crud.class.update }] || [],
       ],
