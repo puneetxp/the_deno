@@ -229,9 +229,8 @@ export class database<_model> {
       data.map((value: any) => {
         if (Array.isArray(value[2])) {
           this.placeholder = [...this.placeholder, ...value[2]];
-          return ` \`${value[0]}\` ${value[1]} (${
-            value[2].map(() => "?").join(", ")
-          })`;
+          return ` \`${value[0]}\` ${value[1]} (${value[2].map(() => "?").join(", ")
+            })`;
         } else if (value[1] === "IN") {
           this.placeholder = [...this.placeholder, value[2]];
           return ` \`${value[0]}\` ${value[1]} (?) `;
@@ -239,7 +238,7 @@ export class database<_model> {
           this.placeholder = [...this.placeholder, value[2]];
           return ` \`${value[0]}\` ${value[1]} ? `;
         }
-      }).join(join);
+      }).join(` ${join} `);
   }
 
   many(): any {
@@ -265,11 +264,11 @@ export class database<_model> {
 
   UpsertQ(data: TheData[]): this {
     this.InsertQ(data);
-    this.query += " on duplicate key update ";
-    Object.keys(data[0]).forEach((i) =>
-      this.fillable.includes(i) &&
-      (this.query += "`" + i + "` = values(`" + i + "`)")
-    );
+    this.query += " ON DUPLICATE KEY UPDATE ";
+    this.query += Object.keys(data[0])
+      .filter((i) => this.fillable.includes(i))
+      .map((i) => ` \`${i}\` = VALUES(\`${i}\`) `)
+      .join(", ");
     return this;
   }
 
@@ -280,9 +279,8 @@ export class database<_model> {
 
   CreateQ(data: TheData): this {
     this.placeholder = [...this.placeholder, ...Object.values(data)];
-    this.query += `( ${Object.keys(data).join(",")} ) VALUES ( ${
-      Object.values(data).map(() => "?").join(",")
-    } )`;
+    this.query += `( ${Object.keys(data).join(",")} ) VALUES ( ${Object.values(data).map(() => "?").join(",")
+      } )`;
     return this;
   }
 
@@ -306,7 +304,7 @@ export class database<_model> {
     const set: string[] = [];
     for (const [key, value] of Object.entries(data)) {
       this.placeholder.push(value);
-      set.push(`${key} = (?)`);
+      set.push(` \`${key}\` = (?) `);
     }
     this.query += set.join(" , ");
     return this;

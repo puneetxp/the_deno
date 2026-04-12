@@ -238,6 +238,7 @@ export abstract class Model<_model> {
 
   public async update(data: Partial<_model>): Promise<this> {
     await this.db.update(this.sanitize(data));
+    this.items = this.db.rows;
     return this;
   }
   public async up(data: Partial<_model>[]): Promise<this> {
@@ -469,7 +470,7 @@ export abstract class Model<_model> {
           model_item: any,
         ) =>
           model_item[this.relations[model]["key"]] ===
-            item[this.relations[model]["name"]]
+          item[this.relations[model]["name"]]
         ),
       );
       return {
