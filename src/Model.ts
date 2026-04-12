@@ -29,7 +29,7 @@ export abstract class Model<_model> {
   protected insertid!: number;
   protected db!: database<_model>;
   public page: { [key: string]: any } = {};
-  public items: _model[] | any = [];
+  public items: _model[] = [];
   protected singular: boolean = false;
   protected _with: any;
   protected one!: string[];
