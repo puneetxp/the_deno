@@ -89,14 +89,16 @@ export class Router {
         if (keyReq.items.length > 0 && !keyReq.items[0].deleted_at) {
           const api_key = keyReq.items[0];
           const bookReq = await Book$().find(api_key.book_id);
-          
+
           if (bookReq.item && !bookReq.item.deleted_at) {
             const book = bookReq.item as any;
             const userReq = await User$().find(book.user_id);
-            
-            if (userReq.item && !userReq.item.deleted_at && userReq.item.enable) {
+
+            if (
+              userReq.item && !userReq.item.deleted_at && userReq.item.enable
+            ) {
               const user = userReq.item as any;
-              
+
               const session = new Session(this.req);
               session.ActiveLoginSession = {
                 books: [book.id],
@@ -112,7 +114,7 @@ export class Router {
                 telegram_id: user.telegram_id ?? null,
               };
               session.getLogin();
-              
+
               // Verify route guards/roles explicitly like the cookie flow does
               if (route.guard) {
                 for (const element of route.guard) {
@@ -120,12 +122,21 @@ export class Router {
                   if (E403) return { islogin: false, error: E403 };
                 }
               }
-              if (route.roles && intersect(session.Login.roles, route.roles) == false && session.Login.id !== 1) {
-                return { islogin: false, error: "Your role is limited via API Key" };
+              if (
+                route.roles &&
+                intersect(session.Login.roles, route.roles) == false &&
+                session.Login.id !== 1
+              ) {
+                return {
+                  islogin: false,
+                  error: "Your role is limited via API Key",
+                };
               }
 
               // Fire and forget updating the last_used_at timestamp
-              Api_key$().where({ id: [api_key.id] }).update({ last_used_at: new Date() }).catch(e => console.error(e));
+              Api_key$().where({ id: [api_key.id] }).update({
+                last_used_at: new Date(),
+              }).catch((e) => console.error(e));
 
               return {
                 islogin: true,

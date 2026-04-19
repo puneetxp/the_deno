@@ -229,8 +229,9 @@ export class database<_model> {
       data.map((value: any) => {
         if (Array.isArray(value[2])) {
           this.placeholder = [...this.placeholder, ...value[2]];
-          return ` \`${value[0]}\` ${value[1]} (${value[2].map(() => "?").join(", ")
-            })`;
+          return ` \`${value[0]}\` ${value[1]} (${
+            value[2].map(() => "?").join(", ")
+          })`;
         } else if (value[1] === "IN") {
           this.placeholder = [...this.placeholder, value[2]];
           return ` \`${value[0]}\` ${value[1]} (?) `;
@@ -279,8 +280,9 @@ export class database<_model> {
 
   CreateQ(data: TheData): this {
     this.placeholder = [...this.placeholder, ...Object.values(data)];
-    this.query += `( ${Object.keys(data).join(",")} ) VALUES ( ${Object.values(data).map(() => "?").join(",")
-      } )`;
+    this.query += `( ${Object.keys(data).join(",")} ) VALUES ( ${
+      Object.values(data).map(() => "?").join(",")
+    } )`;
     return this;
   }
 
