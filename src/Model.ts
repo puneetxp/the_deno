@@ -470,7 +470,7 @@ export abstract class Model<_model> {
           model_item: any,
         ) =>
           model_item[this.relations[model]["key"]] ===
-          item[this.relations[model]["name"]]
+            item[this.relations[model]["name"]]
         ),
       );
       return {
