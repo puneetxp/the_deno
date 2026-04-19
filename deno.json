@@ -1,6 +1,6 @@
 {
   "name": "@puneetxp/the",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "license": "MIT",
   "exports": "./mod.ts",
   "compilerOptions": {
@@ -12,5 +12,6 @@
       "deno.window",
       "deno.unstable"
     ]
-  }
+  },
+  "nodeModulesDir": "auto"
 }
