@@ -218,6 +218,9 @@ export abstract class Model<_model> {
     this.reset();
     await this.db.LimitQ(null);
     await this.db.create(this.sanitize(data));
+    this.item = await this.db.lastinsert();
+    this.items = this.item ? [this.item] : [];
+    this.singular = true;
     await this.db.resetdata();
     return this;
   }
@@ -237,8 +240,22 @@ export abstract class Model<_model> {
   }
 
   public async update(data: Partial<_model>): Promise<this> {
+    const dbAny = this.db as any;
+    const whereAnd = dbAny.__where["AND"].length ? [...dbAny.__where["AND"]] : null;
+    const whereOr = dbAny.__where["OR"].length ? [...dbAny.__where["OR"]] : null;
+    const cacheTarget = dbAny.cacheTarget;
+
     await this.db.update(this.sanitize(data));
-    this.items = this.db.rows;
+    
+    if (whereAnd || whereOr) {
+        if (whereAnd) dbAny.__where["AND"] = whereAnd;
+        if (whereOr) dbAny.__where["OR"] = whereOr;
+        if (cacheTarget) dbAny.cacheTarget = cacheTarget;
+        await this.get();
+    } else {
+        this.items = this.db.rows;
+    }
+
     return this;
   }
   public async up(data: Partial<_model>[]): Promise<this> {
@@ -291,6 +308,14 @@ export abstract class Model<_model> {
   // array output
   public array(): any {
     return this.items;
+  }
+
+  public toJSON(): any {
+    if (this.singular && this.item) return this.item;
+    if (Array.isArray(this.items) && this.items.length === 1) return this.items[0];
+    if (Array.isArray(this.items) && this.items.length > 1) return this.items;
+    if (this.item) return this.item;
+    return this.items || [];
   }
 
   // call relationship
