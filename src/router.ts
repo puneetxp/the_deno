@@ -81,9 +81,9 @@ export class Router {
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
       try {
-        const { Api_key$ } = await import("../../App/Model/Api_key.ts");
-        const { Book$ } = await import("../../App/Model/Book.ts");
-        const { User$ } = await import("../../App/Model/User.ts");
+        const { Api_key$ } = await import("file://" + Deno.cwd() + "/App/Model/Api_key.ts");
+        const { Book$ } = await import("file://" + Deno.cwd() + "/App/Model/Book.ts");
+        const { User$ } = await import("file://" + Deno.cwd() + "/App/Model/User.ts");
 
         const keyReq = await Api_key$().where({ key_value: token }).get();
         if (keyReq.items.length > 0 && !keyReq.items[0].deleted_at) {
@@ -136,7 +136,7 @@ export class Router {
               // Fire and forget updating the last_used_at timestamp
               Api_key$().where({ id: [api_key.id] }).update({
                 last_used_at: new Date(),
-              }).catch((e) => console.error(e));
+              }).catch((e: unknown) => console.error(e));
 
               return {
                 islogin: true,
@@ -146,7 +146,7 @@ export class Router {
             }
           }
         }
-      } catch (e) {
+      } catch (e: unknown) {
         console.error("[API Key Auth Error]", e);
       }
       return {
@@ -190,7 +190,7 @@ export class Router {
     }
     return {
       islogin: false,
-      error: "PLease Login First",
+      error: "Invalid or expired API Key",
     };
   }
 

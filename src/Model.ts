@@ -241,19 +241,23 @@ export abstract class Model<_model> {
 
   public async update(data: Partial<_model>): Promise<this> {
     const dbAny = this.db as any;
-    const whereAnd = dbAny.__where["AND"].length ? [...dbAny.__where["AND"]] : null;
-    const whereOr = dbAny.__where["OR"].length ? [...dbAny.__where["OR"]] : null;
+    const whereAnd = dbAny.__where["AND"].length
+      ? [...dbAny.__where["AND"]]
+      : null;
+    const whereOr = dbAny.__where["OR"].length
+      ? [...dbAny.__where["OR"]]
+      : null;
     const cacheTarget = dbAny.cacheTarget;
 
     await this.db.update(this.sanitize(data));
-    
+
     if (whereAnd || whereOr) {
-        if (whereAnd) dbAny.__where["AND"] = whereAnd;
-        if (whereOr) dbAny.__where["OR"] = whereOr;
-        if (cacheTarget) dbAny.cacheTarget = cacheTarget;
-        await this.get();
+      if (whereAnd) dbAny.__where["AND"] = whereAnd;
+      if (whereOr) dbAny.__where["OR"] = whereOr;
+      if (cacheTarget) dbAny.cacheTarget = cacheTarget;
+      await this.get();
     } else {
-        this.items = this.db.rows;
+      this.items = this.db.rows;
     }
 
     return this;
@@ -312,7 +316,9 @@ export abstract class Model<_model> {
 
   public toJSON(): any {
     if (this.singular && this.item) return this.item;
-    if (Array.isArray(this.items) && this.items.length === 1) return this.items[0];
+    if (Array.isArray(this.items) && this.items.length === 1) {
+      return this.items[0];
+    }
     if (Array.isArray(this.items) && this.items.length > 1) return this.items;
     if (this.item) return this.item;
     return this.items || [];
