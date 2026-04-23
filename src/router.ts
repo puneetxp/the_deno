@@ -6,7 +6,7 @@ import { getCookies } from "../deps.ts";
 const host = Deno.env.get("HOST");
 
 export class Router {
-  constructor(public routes_list: Routes, public req: Request) {}
+  constructor(public routes_list: Routes, public req: Request, public models?: any) {}
   params: string[] | URLPatternResult = [];
   route: null | Route = null;
 
@@ -81,9 +81,17 @@ export class Router {
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
       try {
-        const { Api_key$ } = await import("file://" + Deno.cwd() + "/App/Model/Api_key.ts");
-        const { Book$ } = await import("file://" + Deno.cwd() + "/App/Model/Book.ts");
-        const { User$ } = await import("file://" + Deno.cwd() + "/App/Model/User.ts");
+        let Api_key$, Book$, User$;
+        if (this.models) {
+          Api_key$ = this.models.Api_key$;
+          Book$ = this.models.Book$;
+          User$ = this.models.User$;
+        } else {
+          // Fallback - though this is restricted in remote JSR modules
+          ({ Api_key$ } = await import("file://" + Deno.cwd() + "/App/Model/Api_key.ts"));
+          ({ Book$ } = await import("file://" + Deno.cwd() + "/App/Model/Book.ts"));
+          ({ User$ } = await import("file://" + Deno.cwd() + "/App/Model/User.ts"));
+        }
 
         const keyReq = await Api_key$().where({ key_value: token }).get();
         if (keyReq.items.length > 0 && !keyReq.items[0].deleted_at) {
