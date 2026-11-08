@@ -216,7 +216,6 @@ export class Router {
   }
 
   URLPattern(): this {
-    console.log(`[ROUTER] Matching ${this.req.method} ${this.req.url}`);
     // A method with no routes (OPTIONS, HEAD...) matched nothing; before, it threw.
     for (const r of this.routes_list[this.req.method] ?? []) {
       const match = r.route?.exec(this.req.url);

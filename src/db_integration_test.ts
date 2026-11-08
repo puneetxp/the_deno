@@ -124,6 +124,17 @@ Deno.test({
         },
       );
 
+      await t.step(
+        "create().getInserted() still returns the new row (the@0.0.2 apps use it)",
+        async () => {
+          const row =
+            await (await new Item$().create({ name: "Temp", order: 9 }))
+              .getInserted();
+          assertEquals(row?.name, "Temp");
+          await new Item$().delete({ id: [row.id] });
+        },
+      );
+
       await t.step("insert many and read back every inserted row", async () => {
         const db = DB<Item>("the_pg_items", itemCols);
         await db.insert([

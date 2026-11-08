@@ -308,9 +308,16 @@ export abstract class Model<_model> {
     return this;
   }
 
+  /**
+   * The row the last create() saved. create() already reads it back, which
+   * replaces the insert result the database layer would read it from, so it
+   * is kept here (the@0.0.2 apps call create(...).getInserted()).
+   */
   public async getInserted(): Promise<any> {
+    if (this.created !== undefined) return this.created;
     return await this.db.lastinsert();
   }
+  private created?: _model;
 
   public async getsInserted(): Promise<this> {
     this.items = await this.db.lastinserts();
@@ -322,6 +329,7 @@ export abstract class Model<_model> {
     await this.db.LimitQ(null);
     await this.db.create(this.sanitize(data));
     this.item = await this.db.lastinsert();
+    this.created = this.item;
     this.items = this.item ? [this.item] : [];
     this.singular = true;
     await this.db.resetdata();
