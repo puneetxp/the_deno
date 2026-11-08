@@ -1,0 +1,106 @@
+{
+    "about": "Password and CORS cases every adapter of the framework must pass (same file in the_deno, the_lib and the_go). Passwords: bcrypt cost 10; hashes from any adapter verify in all of them; old unsalted SHA3-256 hashes (the_deno base64, the_lib hex) still verify and must be re-hashed to bcrypt at login. Passwords over 72 bytes are refused when hashing. CORS: CORS=off (default) sends no CORS headers; CORS=on allows any origin, or only CORS_ORIGINS when that list is set.",
+    "password": "s3cret-Pä55",
+    "verify": [
+        {
+            "name": "bcrypt from PHP ($2y$)",
+            "stored": "$2y$10$yFK0o1FnG4RA3LwejyE.vuoeI31LOlRjLDIfmCf2WplyE7nmW3hyO",
+            "ok": true,
+            "rehash": false
+        },
+        {
+            "name": "bcrypt from Go ($2a$)",
+            "stored": "$2a$10$qN/B7CkpPchXnQSfJxCu7.w2QRkR.lpABxWTbxSwGKLURe4k/I5be",
+            "ok": true,
+            "rehash": false
+        },
+        {
+            "name": "bcrypt from Deno ($2a$)",
+            "stored": "$2a$10$6a0AFXGpKXtGFM5YAQLoauMagT7CjQmln0qeZ2comEiynwkjsXhr.",
+            "ok": true,
+            "rehash": false
+        },
+        {
+            "name": "old SHA3-256 base64 (the_deno)",
+            "stored": "qzPcrcsz4lfypv1r16rKZ2q26er4napd0al+dEswbgQ=",
+            "ok": true,
+            "rehash": true
+        },
+        {
+            "name": "old SHA3-256 hex (the_lib)",
+            "stored": "ab33dcadcb33e257f2a6fd6bd7aaca676ab6e9eaf89daa5dd1a97e744b306e04",
+            "ok": true,
+            "rehash": true
+        },
+        {
+            "name": "bcrypt of another password",
+            "stored": "$2y$10$a3vC15tCXtd.QwhVWNA/jefcTwIw9GyJOBc3JJa52PTDE4HZbMS4a",
+            "ok": false,
+            "rehash": false
+        },
+        {
+            "name": "SHA3 of another password",
+            "stored": "ab33dcadcb33e257f2a6fd6bd7aaca676ab6e9eaf89daa5dd1a97e744b306e05",
+            "ok": false,
+            "rehash": false
+        },
+        {
+            "name": "empty stored hash",
+            "stored": "",
+            "ok": false,
+            "rehash": false
+        }
+    ],
+    "too_long": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "cors": [
+        {
+            "name": "off by default",
+            "cors": "",
+            "origins": "",
+            "origin": "https://a.example",
+            "allow": null
+        },
+        {
+            "name": "off",
+            "cors": "off",
+            "origins": "https://a.example",
+            "origin": "https://a.example",
+            "allow": null
+        },
+        {
+            "name": "on, any origin",
+            "cors": "on",
+            "origins": "",
+            "origin": "https://a.example",
+            "allow": "https://a.example"
+        },
+        {
+            "name": "on, listed origin",
+            "cors": "on",
+            "origins": "https://a.example, https://b.example",
+            "origin": "https://b.example",
+            "allow": "https://b.example"
+        },
+        {
+            "name": "on, unlisted origin",
+            "cors": "on",
+            "origins": "https://a.example",
+            "origin": "https://evil.example",
+            "allow": null
+        },
+        {
+            "name": "on, no Origin header (same-origin request)",
+            "cors": "on",
+            "origins": "",
+            "origin": "",
+            "allow": null
+        },
+        {
+            "name": "true also means on",
+            "cors": "true",
+            "origins": "",
+            "origin": "https://a.example",
+            "allow": "https://a.example"
+        }
+    ]
+}

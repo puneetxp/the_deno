@@ -15,6 +15,9 @@ export class Router {
   route: null | Route = null;
 
   async run(): Promise<Response> {
+    if (this.req.method === "OPTIONS") {
+      return response.OPTIONS(this.req); // CORS preflight
+    }
     if (this.route) {
       return await this.checkPermission();
     }
@@ -214,7 +217,8 @@ export class Router {
 
   URLPattern(): this {
     console.log(`[ROUTER] Matching ${this.req.method} ${this.req.url}`);
-    for (const r of this.routes_list[this.req.method]) {
+    // A method with no routes (OPTIONS, HEAD...) matched nothing; before, it threw.
+    for (const r of this.routes_list[this.req.method] ?? []) {
       const match = r.route?.exec(this.req.url);
       if (match != null) {
         this.route = r;

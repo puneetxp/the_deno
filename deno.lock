@@ -17,6 +17,8 @@
     "jsr:@std/net@^1.0.4": "1.0.6",
     "jsr:@std/path@^1.0.6": "1.1.4",
     "jsr:@std/streams@^1.0.7": "1.0.17",
+    "npm:@types/bcryptjs@2.4.6": "2.4.6",
+    "npm:bcryptjs@2.4.3": "2.4.3",
     "npm:mysql2@3.11.0": "3.11.0",
     "npm:pg@8.13.1": "8.13.1"
   },
@@ -90,8 +92,14 @@
     }
   },
   "npm": {
+    "@types/bcryptjs@2.4.6": {
+      "integrity": "sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ=="
+    },
     "aws-ssl-profiles@1.1.2": {
       "integrity": "sha512-NZKeq9AfyQvEeNlN0zSYAaWrmBffJh3IELMZfRpJVWgrpEbtEpnjvzqBPf+mxoI287JohRDoa+/nsfqqiZmF6g=="
+    },
+    "bcryptjs@2.4.3": {
+      "integrity": "sha512-V/Hy/X9Vt7f3BbPJEi8BdVFMByHi+jNXrYkW3huaybV/kQ0KJg0Y6PkEMbn+zeT+i+SiKZ/HMqJGIIt4LZDqNQ=="
     },
     "denque@2.1.0": {
       "integrity": "sha512-HVQE3AAb/pxF8fQAoiqpvg9i3evqug3hoiwakOyZAwJm+6vZehbkYXZ0l4JxS+I3QxM97v5aaRNhj8v5oBhekw=="

@@ -375,6 +375,24 @@ DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno
 DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A src/
 ```
 
+## Passwords and CORS (the same in every adapter)
+
+`spec/auth_cases.json` holds the cases for both. The file is the same in the_deno, the_lib and the_go, and each adapter's tests read it.
+
+**Passwords:** bcrypt, cost 10. A hash made by any adapter logs in through the others.
+- Old unsalted SHA3-256 hashes (the_deno base64, the_lib hex) still log in, and are replaced by bcrypt at that login.
+- Passwords over 72 bytes are refused at register, because bcrypt reads only the first 72 bytes.
+
+**CORS:** a switch, off by default.
+
+| Setting | Effect |
+| --- | --- |
+| `CORS` unset or `off` | no other site may call the API with cookies; same-origin setups need nothing |
+| `CORS=on` | other sites may: any origin, for development |
+| `CORS=on` with `CORS_ORIGINS=https://a.com,https://b.com` | only those origins, for production |
+
+In Deno: `hashPassword` and `verifyPassword` (from `mod.ts`), and `CORS` / `CORS_ORIGINS` in the environment. The router now answers CORS preflights. Before, an `OPTIONS` request crashed the handler.
+
 ## Querying through models
 
 Build queries as a chain on the model; relations are used by name:
