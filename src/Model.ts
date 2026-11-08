@@ -336,9 +336,18 @@ export abstract class Model<_model> {
   }
 
   // update
+  /**
+   * Insert rows, or update the row with the same id. Fillable columns are
+   * written, and id is kept when given: generated models never list id as
+   * fillable, and without it an upsert could only ever insert.
+   */
   public async upsert(data: Partial<_model>[]): Promise<this> {
     this.reset();
-    await this.db.upsert(this.clean(data));
+    await this.db.upsert(data.map((row) => {
+      const clean = this.sanitize(row);
+      const id = (row as Record<string, unknown>)["id"];
+      return id === undefined ? clean : { ...clean, id: id as TheData[string] };
+    }));
     return this;
   }
 

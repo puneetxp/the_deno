@@ -67,6 +67,21 @@ class Item$ extends Model<Item> {
   }
 }
 
+// As compile-php generates models: id, created_at and updated_at are not
+// fillable.
+class GeneratedItem$ extends Model<Item> {
+  constructor() {
+    const fillable = itemCols.filter((c) => c !== "id");
+    super(
+      "item",
+      "the_pg_items",
+      ["deleted_at", "category_id"],
+      fillable,
+      itemCols,
+    );
+  }
+}
+
 Deno.test({
   name: `Model and DB work against ${pg ? "PostgreSQL" : "MySQL"}`,
   ignore: !enabled,
@@ -154,6 +169,31 @@ Deno.test({
           await new Item$().upsert([{ name: "Kangra", order: 4 }]);
           const added = await new Item$().where({ name: "Kangra" }).get();
           assertEquals(added.items.length, 1);
+        },
+      );
+
+      await t.step(
+        "upsert by id with a generated model (id not fillable) updates, not inserts",
+        async () => {
+          const existing =
+            (await new Item$().find("Nilgiri FTGFOP", "name")).item;
+          const before = (await new Item$().all()).items.length;
+          await new GeneratedItem$().upsert([
+            { id: existing.id, name: "Nilgiri Gold", order: 3 },
+          ]);
+          assertEquals(
+            (await new Item$().find(existing.id)).item.name,
+            "Nilgiri Gold",
+          );
+          assertEquals((await new Item$().all()).items.length, before);
+          // and back, for the steps below
+          await new GeneratedItem$().upsert([
+            { id: existing.id, name: "Nilgiri FTGFOP", order: 3 },
+          ]);
+          assertEquals(
+            (await new Item$().find(existing.id)).item.name,
+            "Nilgiri FTGFOP",
+          );
         },
       );
 
