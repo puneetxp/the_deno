@@ -376,8 +376,11 @@ export abstract class Model<_model> {
     where: any,
     filed: string = "enable",
   ): Promise<database<_model>> {
+    // CASE instead of NOT: flag columns are 0/1 integers, and PostgreSQL's NOT
+    // only takes booleans. Same result as MySQL's NOT on 0/1.
+    const f = ident(filed);
     return this.db.UpSet().WhereQ(where).rawsql(
-      `UPDATE ${this.table} SET \`${filed}\` = NOT \`${filed}\``,
+      `UPDATE ${this.table} SET ${f} = CASE WHEN ${f} = 0 THEN 1 ELSE 0 END`,
     ).exe();
   }
 

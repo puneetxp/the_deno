@@ -330,14 +330,14 @@ Router/Framework Flow
 
 The connection comes from environment variables (`.env` is loaded):
 
-| Variable   | Meaning                                                                       |
-| ---------- | ----------------------------------------------------------------------------- |
-| `DBDRIVER` | `mysql` (default; also `mariadb`) or `postgres` (also `postgresql`, `pg`)     |
-| `DBHOST`   | Server host                                                                   |
-| `DBPORT`   | Port; default `3306` for MySQL, `5432` for PostgreSQL                         |
-| `DBSOCKET` | MySQL: socket file (auto-detected). PostgreSQL: socket directory              |
-| `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                     |
-| `DBPOOL`   | Pool size, default `4`                                                        |
+| Variable                    | Meaning                                                                   |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `DBDRIVER`                  | `mysql` (default; also `mariadb`) or `postgres` (also `postgresql`, `pg`) |
+| `DBHOST`                    | Server host                                                               |
+| `DBPORT`                    | Port; default `3306` for MySQL, `5432` for PostgreSQL                     |
+| `DBSOCKET`                  | MySQL: socket file (auto-detected). PostgreSQL: socket directory          |
+| `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                                  |
+| `DBPOOL`                    | Pool size, default `4`                                                    |
 
 The pool is opened on the first query. `npm:pg` is loaded only when
 `DBDRIVER=postgres`.
@@ -349,11 +349,12 @@ double quotes. Text inside strings and comments is left alone, and SQL that
 already uses `$n` is passed through unchanged.
 
 On PostgreSQL:
+
 - inserts add `RETURNING *`, so `create()`, `lastinsert()` and `lastinserts()`
   work without `insertId`;
-- `upsert()` becomes `ON CONFLICT (id) DO UPDATE SET col = EXCLUDED.col`.
-  MySQL matches any unique key, while PostgreSQL needs one named; pass another
-  key with `db.UpsertQ(rows, ["book_id", "number"])`;
+- `upsert()` becomes `ON CONFLICT (id) DO UPDATE SET col = EXCLUDED.col`. MySQL
+  matches any unique key, while PostgreSQL needs one named; pass another key
+  with `db.UpsertQ(rows, ["book_id", "number"])`;
 - `bigint`/`bigserial` come back as numbers, as they do from mysql2.
   `numeric`/`decimal` stay strings in both drivers;
 - INSERT/UPDATE/DELETE results have the same shape as MySQL's:
@@ -362,8 +363,8 @@ On PostgreSQL:
 
 Not translated: MySQL-only functions and syntax in `raw()` SQL, such as
 `IFNULL`, `DATE_FORMAT`, `ON DUPLICATE KEY` or `LIMIT` on UPDATE. Write those
-portably, for example `COALESCE` instead of `IFNULL`. `toggle()` needs a
-`boolean` column on PostgreSQL.
+portably, for example `COALESCE` instead of `IFNULL`. `toggle()` works on 0/1
+integer flag columns (as compile-php generates `enable`) on both.
 
 Tests: `deno test -A src/` runs the SQL rewrite tests. To also run the Model/DB
 test against a real server, which creates and drops `the_pg_items` and
@@ -387,8 +388,8 @@ await Book_stock$()
   .get();
 ```
 
-Also `whereNotHas`, `limit(count, offset)`, `withJoin([rel])` (uses the chain) and
-`toSQL()`. The full contract, which every language adapter follows, is in
+Also `whereNotHas`, `limit(count, offset)`, `withJoin([rel])` (uses the chain)
+and `toSQL()`. The full contract, which every language adapter follows, is in
 [`spec/README.md`](spec/README.md), with test cases in `spec/query_cases.json`.
 
 ## Model and update

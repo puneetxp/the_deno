@@ -84,7 +84,7 @@ Deno.test({
       id ${serial} PRIMARY KEY,
       name varchar(100) NOT NULL,
       \`order\` int NOT NULL DEFAULT 0,
-      enable boolean NOT NULL DEFAULT true,
+      enable smallint NOT NULL DEFAULT 1, -- as compile-php generates it
       price numeric(10,2) NOT NULL DEFAULT 0,
       deleted_at timestamp NULL DEFAULT NULL,
       category_id ${fk} NULL REFERENCES the_pg_categories(id))`).exe();
@@ -157,7 +157,7 @@ Deno.test({
         },
       );
 
-      await t.step("toggle flips a boolean column", async () => {
+      await t.step("toggle flips a 0/1 flag column", async () => {
         await new Item$().toggle({ name: "Assam" });
         const a = (await new Item$().find("Assam", "name")).item;
         assertEquals(Boolean(a.enable), false);
