@@ -13,7 +13,7 @@ and must produce exactly the `sql` and `params` given. the_deno runs them in
 
 | Step | Meaning |
 | --- | --- |
-| `where({col: value})` | `col IN (?)`. A list gives `IN (?, ?)`; an empty list matches nothing (`1 = 0`). Calls chain with AND. |
+| `where({col: value})` | `col IN (?)`. A list gives `IN (?, ?)`; an empty list matches nothing (`1 = 0`). Calls chain with AND. Several columns in one call come out in column-name order, so the SQL never depends on map order (Go maps have none). |
 | `where({...}, true)` | Same, but first drops the conditions added earlier in the chain. |
 | `whereHas(rel, {col: value})` | Keep rows with a related row matching the conditions. |
 | `whereHas(rel, related => related.where(...)...)` | The same, with any chain on the related model, including more `whereHas`. |

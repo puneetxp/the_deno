@@ -453,7 +453,8 @@ export class database<_model> {
   }
 
   WhereQ(where: TheData, type: "AND" | "OR" = "AND"): this {
-    for (const property in where) {
+    // Column-name order, as in every adapter: the SQL never depends on key order.
+    for (const property of Object.keys(where).sort()) {
       this.__where[type].push([property, "IN", where[property]]);
     }
     this.clearCacheTargetUnlessId();

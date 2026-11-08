@@ -27,6 +27,13 @@
       "params": [1, 1, 2]
     },
     {
+      "name": "several columns in one where come out in column-name order",
+      "model": "book_stock",
+      "chain": [["where", { "publish": 1, "id": [3, 4] }]],
+      "sql": "SELECT * FROM book_stocks WHERE `id` IN (?, ?) AND `publish` IN (?)",
+      "params": [3, 4, 1]
+    },
+    {
       "name": "where with reset drops earlier conditions",
       "model": "product",
       "chain": [["where", { "enable": 1 }], ["where", { "id": 5 }, true]],
