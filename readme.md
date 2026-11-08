@@ -326,6 +326,54 @@ Router/Framework Flow
 
 ![deno router green](https://user-images.githubusercontent.com/19248561/214393928-a341f0ef-7647-43a7-850f-354a06aa1aa7.svg)
 
+## Database: MySQL or PostgreSQL
+
+The connection comes from environment variables (`.env` is loaded):
+
+| Variable   | Meaning                                                                       |
+| ---------- | ----------------------------------------------------------------------------- |
+| `DBDRIVER` | `mysql` (default; also `mariadb`) or `postgres` (also `postgresql`, `pg`)     |
+| `DBHOST`   | Server host                                                                   |
+| `DBPORT`   | Port; default `3306` for MySQL, `5432` for PostgreSQL                         |
+| `DBSOCKET` | MySQL: socket file (auto-detected). PostgreSQL: socket directory              |
+| `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                     |
+| `DBPOOL`   | Pool size, default `4`                                                        |
+
+The pool is opened on the first query. `npm:pg` is loaded only when
+`DBDRIVER=postgres`.
+
+Queries are written once, MySQL-style: `?` placeholders and backtick-quoted
+identifiers, in the builder and in `raw()` SQL alike. On PostgreSQL they are
+rewritten right before running: `?` becomes `$1, $2, ...` and backticks become
+double quotes. Text inside strings and comments is left alone, and SQL that
+already uses `$n` is passed through unchanged.
+
+On PostgreSQL:
+- inserts add `RETURNING *`, so `create()`, `lastinsert()` and `lastinserts()`
+  work without `insertId`;
+- `upsert()` becomes `ON CONFLICT (id) DO UPDATE SET col = EXCLUDED.col`.
+  MySQL matches any unique key, while PostgreSQL needs one named; pass another
+  key with `db.UpsertQ(rows, ["book_id", "number"])`;
+- `bigint`/`bigserial` come back as numbers, as they do from mysql2.
+  `numeric`/`decimal` stay strings in both drivers;
+- INSERT/UPDATE/DELETE results have the same shape as MySQL's:
+  `{ insertId, affectedRows }`;
+- `count(*)` comes back under the key `count`, not `count(*)`.
+
+Not translated: MySQL-only functions and syntax in `raw()` SQL, such as
+`IFNULL`, `DATE_FORMAT`, `ON DUPLICATE KEY` or `LIMIT` on UPDATE. Write those
+portably, for example `COALESCE` instead of `IFNULL`. `toggle()` needs a
+`boolean` column on PostgreSQL.
+
+Tests: `deno test -A src/` runs the SQL rewrite tests. To also run the Model/DB
+test against a real server, which creates and drops `the_pg_items` and
+`the_pg_categories`:
+
+```sh
+DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno test -A src/
+DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A src/
+```
+
 ## Model and update
 
 Documentation Update Soon Example as below

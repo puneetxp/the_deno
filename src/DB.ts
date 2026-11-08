@@ -1,6 +1,13 @@
 import { mysql2 } from "../deps.ts";
 import type { TheData } from "./type.ts";
 import { createCache, type KVCache } from "./KVCache.ts";
+import {
+  type DBDriver,
+  ident,
+  resolveDriver,
+  toPostgresSQL,
+  type WriteResult,
+} from "./sql_dialect.ts";
 
 export type DBAction =
   | "SELECT"
@@ -54,22 +61,120 @@ function detectSocketPath(): string | null {
   return null;
 }
 
-const socketPath = detectSocketPath();
-const poolConfig = socketPath
-  ? {
-    socketPath,
-  }
-  : {
+/** Which database the app talks to: `DBDRIVER=postgres`, or MySQL by default. */
+export const dbDriver: DBDriver = resolveDriver(Deno.env.get("DBDRIVER"));
+
+// Runs one statement. SELECTs (and raw statements that return rows) give
+// the rows; builder INSERT/UPDATE/DELETE give a WriteResult in both drivers.
+type Runner = {
+  run(sql: string, values: any[], action: DBAction): Promise<[any, any]>;
+  end(): Promise<void>;
+};
+
+let runner: Runner | null = null;
+let runnerPromise: Promise<Runner> | null = null;
+
+function getRunner(): Promise<Runner> {
+  if (runner) return Promise.resolve(runner);
+  runnerPromise ??= (dbDriver === "postgres" ? postgresRunner() : mysqlRunner())
+    .then((r) => (runner = r))
+    .catch((error) => {
+      runnerPromise = null;
+      throw error;
+    });
+  return runnerPromise;
+}
+
+/** Close the connection pool (tests and scripts; servers never need it). */
+export async function closeDB(): Promise<void> {
+  const r = runner ?? (runnerPromise ? await runnerPromise : null);
+  runner = null;
+  runnerPromise = null;
+  await r?.end();
+}
+
+function mysqlRunner(): Promise<Runner> {
+  const socketPath = detectSocketPath();
+  const poolConfig = socketPath ? { socketPath } : {
     host: Deno.env.get("DBHOST"),
     port: Number(Deno.env.get("DBPORT") ?? "3306"),
   };
-const connection = mysql2.createPool({
-  ...poolConfig,
-  user: Deno.env.get("DBUSER"),
-  password: Deno.env.get("DBPWD"),
-  database: Deno.env.get("DBNAME"),
-  connectionLimit: Number(Deno.env.get("DBPOOL") ?? "4"),
-}) as QueryablePool;
+  const pool = mysql2.createPool({
+    ...poolConfig,
+    user: Deno.env.get("DBUSER"),
+    password: Deno.env.get("DBPWD"),
+    database: Deno.env.get("DBNAME"),
+    connectionLimit: Number(Deno.env.get("DBPOOL") ?? "4"),
+  }) as QueryablePool;
+  return Promise.resolve({
+    async run(sql, values) {
+      const [rows, fields] = await pool.query(sql, values);
+      return [rows, fields];
+    },
+    end: () => pool.end(),
+  });
+}
+
+// Minimal shape of npm:pg used here (it ships no types of its own).
+type PgResult = {
+  command: string;
+  rowCount: number | null;
+  rows: any[];
+  fields: { name: string; dataTypeID: number }[];
+};
+type PgPool = {
+  query(sql: string, values?: any[]): Promise<PgResult | PgResult[]>;
+  end(): Promise<void>;
+};
+
+const PG_INT8 = 20;
+
+async function postgresRunner(): Promise<Runner> {
+  const mod: any = await import("npm:pg@8.13.1");
+  const pg = mod.default ?? mod;
+  const pool: PgPool = new pg.Pool({
+    // DBSOCKET is the socket *directory* for PostgreSQL, e.g. /run/postgresql.
+    host: Deno.env.get("DBSOCKET") || Deno.env.get("DBHOST"),
+    port: Number(Deno.env.get("DBPORT") ?? "5432"),
+    user: Deno.env.get("DBUSER"),
+    password: Deno.env.get("DBPWD"),
+    database: Deno.env.get("DBNAME"),
+    max: Number(Deno.env.get("DBPOOL") ?? "4"),
+    types: {
+      // bigint/bigserial ids come back as numbers, as they do from mysql2.
+      // DECIMAL/NUMERIC stay strings in both drivers.
+      getTypeParser(oid: number, format?: string) {
+        if (oid === PG_INT8) {
+          return (v: string) => {
+            const n = Number(v);
+            return Number.isSafeInteger(n) ? n : v;
+          };
+        }
+        return pg.types.getTypeParser(oid, format);
+      },
+    },
+  });
+  return {
+    async run(sql, values, action) {
+      const res = await pool.query(toPostgresSQL(sql), values);
+      const last = Array.isArray(res) ? res[res.length - 1] : res;
+      const isWrite = ["INSERT", "UPDATE", "DELETE"].includes(last.command);
+      if (isWrite && (action !== "RAW" || last.fields.length === 0)) {
+        const ids = last.command === "INSERT"
+          ? last.rows.map((r) => r?.id).filter((id) => id != null)
+          : [];
+        const result: WriteResult = {
+          insertId: ids.length ? ids[0] : null,
+          affectedRows: last.rowCount ?? 0,
+          insertIds: ids,
+        };
+        return [result, last.fields];
+      }
+      return [last.rows, last.fields];
+    },
+    end: () => pool.end(),
+  };
+}
 
 export class database<_model> {
   protected query = "";
@@ -159,9 +264,14 @@ export class database<_model> {
 
     try {
       this.bind();
-      [this.rows, this.field] = await connection.query(
+      if (dbDriver === "postgres" && this.action === "INSERT") {
+        // PostgreSQL has no insertId; return the rows to read the ids from.
+        this.query += " RETURNING *";
+      }
+      [this.rows, this.field] = await (await getRunner()).run(
         this.query,
         this.placeholder,
+        this.action,
       );
 
       if (this.cache && this.kv) {
@@ -263,13 +373,25 @@ export class database<_model> {
     return this.rows;
   }
 
-  UpsertQ(data: TheData[]): this {
+  /**
+   * Insert, or update the row that already exists. MySQL matches on any
+   * unique key; PostgreSQL needs one named, so `conflict` defaults to `id`.
+   */
+  UpsertQ(data: TheData[], conflict: string[] = ["id"]): this {
     this.InsertQ(data);
-    this.query += " ON DUPLICATE KEY UPDATE ";
-    this.query += Object.keys(data[0])
-      .filter((i) => this.fillable.includes(i))
-      .map((i) => ` \`${i}\` = VALUES(\`${i}\`) `)
-      .join(", ");
+    const cols = Object.keys(data[0] ?? {})
+      .filter((i) => this.fillable.includes(i));
+    if (dbDriver === "postgres") {
+      const set = cols.filter((c) => !conflict.includes(c));
+      this.query += ` ON CONFLICT (${conflict.map(ident).join(", ")}) ` +
+        (set.length
+          ? "DO UPDATE SET " +
+            set.map((c) => `${ident(c)} = EXCLUDED.${ident(c)}`).join(", ")
+          : "DO NOTHING");
+    } else {
+      this.query += " ON DUPLICATE KEY UPDATE " +
+        cols.map((c) => ` ${ident(c)} = VALUES(${ident(c)}) `).join(", ");
+    }
     return this;
   }
 
@@ -280,7 +402,7 @@ export class database<_model> {
 
   CreateQ(data: TheData): this {
     this.placeholder = [...this.placeholder, ...Object.values(data)];
-    this.query += `( ${Object.keys(data).join(",")} ) VALUES ( ${
+    this.query += `( ${Object.keys(data).map(ident).join(",")} ) VALUES ( ${
       Object.values(data).map(() => "?").join(",")
     } )`;
     return this;
@@ -288,7 +410,7 @@ export class database<_model> {
 
   InsertQ(data: TheData[]): this {
     if (data.length > 0) {
-      this.query += ` ( ${Object.keys(data[0]).join(",")} ) VALUES `;
+      this.query += ` ( ${Object.keys(data[0]).map(ident).join(",")} ) VALUES `;
       const insert: any[] = [];
       data.forEach((i) => {
         for (const [key, value] of Object.entries(i)) {
@@ -378,18 +500,21 @@ export class database<_model> {
   }
 
   lastinserts(): Promise<any> {
-    //console.log(this.rows);
-    const value = [];
-    for (let i = 0; i < this.rows.affectedRows; i++) {
-      // @ts-ignore
-      value.push(this.rows.insertId + i);
+    const result = this.rows as WriteResult;
+    // PostgreSQL reports every id; MySQL gives the first, and a multi-row
+    // INSERT takes consecutive ids from it.
+    const value: number[] = result.insertIds?.length
+      ? [...result.insertIds]
+      : [];
+    if (!value.length && result.insertId != null) {
+      for (let i = 0; i < result.affectedRows; i++) {
+        value.push(result.insertId + i);
+      }
     }
-    //console.log(value);
     return this.where({ id: value }).get();
   }
   lastinsert(): Promise<any> {
-    //console.log(this.rows);
-    return this.where({ id: this.rows.insertId }).get(1);
+    return this.where({ id: (this.rows as WriteResult).insertId }).get(1);
   }
 
   truncate(): this {

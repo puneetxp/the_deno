@@ -22,7 +22,7 @@ export function buildSelectList(
     return [`${alias}.*`];
   }
   return cols.map((col) =>
-    `${alias}.\`${col}\` AS ${prefix ? `${prefix}__${col}` : col}`
+    `${alias}.\`${col}\` AS \`${prefix ? `${prefix}__${col}` : col}\``
   );
 }
 

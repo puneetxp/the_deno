@@ -274,7 +274,7 @@ export abstract class Model<_model> {
     filed: string = "enable",
   ): Promise<database<_model>> {
     return this.db.UpSet().WhereQ(where).rawsql(
-      `SET \`${filed}\` = NOT \`${filed}\``,
+      `UPDATE ${this.table} SET \`${filed}\` = NOT \`${filed}\``,
     ).exe();
   }
 
