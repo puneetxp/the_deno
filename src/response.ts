@@ -9,8 +9,8 @@ import { Session } from "./Session.ts";
  * Same-origin setups (frontend and /api behind one host) need neither.
  */
 export function corsSetting(
-  on = Deno.env.get("CORS") ?? "",
-  origins = Deno.env.get("CORS_ORIGINS") ?? "",
+  on: string = Deno.env.get("CORS") ?? "",
+  origins: string = Deno.env.get("CORS_ORIGINS") ?? "",
 ): { enabled: boolean; origins: string[] } {
   return {
     enabled: ["on", "true", "1", "yes"].includes(on.trim().toLowerCase()),
@@ -21,7 +21,7 @@ export function corsSetting(
 /** CORS headers for origin: none when CORS is off or the origin isn't allowed. */
 export function getCorsHeaders(
   origin?: string,
-  setting = corsSetting(),
+  setting: { enabled: boolean; origins: string[] } = corsSetting(),
 ): Record<string, string> {
   if (
     !setting.enabled || !origin ||
