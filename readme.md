@@ -374,6 +374,23 @@ DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno
 DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A src/
 ```
 
+## Querying through models
+
+Build queries as a chain on the model; relations are used by name:
+
+```ts
+await Book_stock$()
+  .where({ publish: 1, enable: 1 })
+  .whereHas("book", { public_listing: 1 })
+  .whereHas("product", (p) => p.where({ enable: 1 }))
+  .orderBy("id")
+  .get();
+```
+
+Also `whereNotHas`, `limit(count, offset)`, `withJoin([rel])` (uses the chain) and
+`toSQL()`. The full contract, which every language adapter follows, is in
+[`spec/README.md`](spec/README.md), with test cases in `spec/query_cases.json`.
+
 ## Model and update
 
 Documentation Update Soon Example as below

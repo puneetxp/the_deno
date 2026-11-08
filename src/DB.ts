@@ -176,6 +176,9 @@ async function postgresRunner(): Promise<Runner> {
   };
 }
 
+// Marks a where entry that holds ORM-generated SQL instead of [column, op, value].
+const RAW = Symbol("raw-condition");
+
 export class database<_model> {
   protected query = "";
   protected field: any;
@@ -189,6 +192,7 @@ export class database<_model> {
     "OR": [],
   };
   protected action: DBAction = "RAW";
+  protected order: [string, "ASC" | "DESC"][] = [];
   protected cacheTarget: CacheTarget | null = null;
   protected kv?: KVCache;
   rows: any;
@@ -326,6 +330,9 @@ export class database<_model> {
       }
     }
 
+    if (this.action === "SELECT") {
+      this.query += this.orderSQL();
+    }
     if (this.limit && this.limit > 0) {
       this.query += " LIMIT " + this.limit;
     }
@@ -337,17 +344,28 @@ export class database<_model> {
   bindwhere(data: any, join: "AND" | "OR" = "AND"): void {
     this.query += (join == "AND" ? "" : " " + join + " ") +
       data.map((value: any) => {
+        if (value[0] === RAW) {
+          // A condition the ORM built itself (whereHas, whereNull).
+          this.placeholder = [...this.placeholder, ...value[2]];
+          return ` ${value[1]} `;
+        }
+        if (Array.isArray(value[2]) && value[2].length === 0) {
+          // "IN ()" is invalid SQL: nothing is in an empty list.
+          return String(value[1]).toUpperCase() === "NOT IN"
+            ? " 1 = 1 "
+            : " 1 = 0 ";
+        }
         if (Array.isArray(value[2])) {
           this.placeholder = [...this.placeholder, ...value[2]];
-          return ` \`${value[0]}\` ${value[1]} (${
+          return ` ${this.colRef(value[0])} ${value[1]} (${
             value[2].map(() => "?").join(", ")
           })`;
         } else if (value[1] === "IN") {
           this.placeholder = [...this.placeholder, value[2]];
-          return ` \`${value[0]}\` ${value[1]} (?) `;
+          return ` ${this.colRef(value[0])} ${value[1]} (?) `;
         } else {
           this.placeholder = [...this.placeholder, value[2]];
-          return ` \`${value[0]}\` ${value[1]} ? `;
+          return ` ${this.colRef(value[0])} ${value[1]} ? `;
         }
       }).join(` ${join} `);
   }
@@ -531,6 +549,85 @@ export class database<_model> {
     };
     this.action = "RAW";
     this.cacheTarget = null;
+    // Without this a LIMIT from find() stayed on the next query.
+    this.limit = null;
+    this.offset = null;
+    this.order = [];
+  }
+
+  /** Add a condition the ORM generated (whereHas, whereNull). Not for app SQL. */
+  WhereRawQ(sql: string, params: any[] = [], type: "AND" | "OR" = "AND"): this {
+    this.__where[type].push([RAW, sql, params]);
+    this.cacheTarget = null;
+    return this;
+  }
+
+  OrderQ(column: string, direction: "ASC" | "DESC" = "ASC"): this {
+    const d = String(direction).toUpperCase();
+    if (d !== "ASC" && d !== "DESC") {
+      throw new Error(
+        `orderBy direction must be ASC or DESC, got "${direction}"`,
+      );
+    }
+    this.order.push([column, d]);
+    this.cacheTarget = null;
+    return this;
+  }
+
+  // Table name or alias to qualify columns with while building a join query.
+  protected qualifier: string | null = null;
+
+  protected colRef(column: string): string {
+    return this.qualifier
+      ? `${ident(this.qualifier)}.${ident(column)}`
+      : ident(column);
+  }
+
+  /**
+   * The WHERE conditions so far, without the WHERE keyword; state is kept.
+   * With `qualifier`, columns are written as qualifier.column (for joins).
+   */
+  whereSQL(qualifier: string | null = null): { sql: string; params: any[] } {
+    const [query, placeholder] = [this.query, this.placeholder];
+    this.query = "";
+    this.placeholder = [];
+    this.qualifier = qualifier;
+    try {
+      if (this.__where["AND"].length > 0) {
+        this.bindwhere(this.__where["AND"], "AND");
+        if (this.__where["OR"].length > 0) {
+          this.bindwhere(this.__where["OR"], "OR");
+        }
+      }
+      return { sql: this.query.trim(), params: this.placeholder };
+    } finally {
+      this.qualifier = null;
+      [this.query, this.placeholder] = [query, placeholder];
+    }
+  }
+
+  /** LIMIT/OFFSET for the chain so far ("" when none). */
+  limitSQL(): string {
+    return (this.limit && this.limit > 0 ? " LIMIT " + this.limit : "") +
+      (this.offset && this.offset > 0 ? " OFFSET " + this.offset : "");
+  }
+
+  /** ORDER BY clause for the chain so far ("" when none), optionally qualified. */
+  orderSQL(qualifier: string | null = null): string {
+    if (!this.order.length) return "";
+    const ref = (c: string) =>
+      qualifier ? `${ident(qualifier)}.${ident(c)}` : ident(c);
+    return " ORDER BY " +
+      this.order.map(([c, d]) => `${ref(c)} ${d}`).join(", ");
+  }
+
+  /** The SELECT this builder would run, without running it; resets the builder. */
+  toSQL(): { sql: string; params: any[] } {
+    if (this.action !== "SELECT") this.SelSet();
+    this.bind();
+    const out = { sql: this.query, params: [...this.placeholder] };
+    this.resetdata();
+    return out;
   }
 
   getAction(): DBAction {

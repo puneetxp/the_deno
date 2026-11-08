@@ -36,7 +36,14 @@ class Category$ extends Model<Category> {
     super("category", "the_pg_categories", [], ["id", "title"], [
       "id",
       "title",
-    ]);
+    ], {
+      item: {
+        table: "the_pg_items",
+        name: "id",
+        key: "category_id",
+        callback: () => new Item$(),
+      },
+    });
   }
 }
 
@@ -171,6 +178,56 @@ Deno.test({
           .with(["category"]);
         assertEquals(eager.items.category[0].title, "Tea");
       });
+
+      // Items now: Assam (order 2, category Tea), Darjeeling (1), Nilgiri FTGFOP (3), Kangra (4).
+      await t.step(
+        "chained where, whereHas, whereNotHas, orderBy, limit",
+        async () => {
+          await new Category$().create({ title: "Empty" });
+          const names = (m: Model<any>) => m.items.map((i: Item) => i.name);
+
+          const chained = await new Item$()
+            .where({ name: ["Assam", "Kangra"] })
+            .where({ order: [4] })
+            .get();
+          assertEquals(names(chained), ["Kangra"]);
+
+          const inTea = await new Item$().whereHas("category", { title: "Tea" })
+            .get();
+          assertEquals(names(inTea), ["Assam"]);
+
+          const withAssam = await new Category$()
+            .whereHas("item", (i) => i.where({ name: "Assam" }))
+            .get();
+          assertEquals(withAssam.items.map((c: Category) => c.title), ["Tea"]);
+
+          const empty = await new Category$().whereNotHas("item").get();
+          assertEquals(empty.items.map((c: Category) => c.title), ["Empty"]);
+
+          const top = await new Item$().orderBy("order", "DESC").limit(2).get();
+          assertEquals(names(top), ["Kangra", "Nilgiri FTGFOP"]);
+        },
+      );
+
+      await t.step("withJoin uses the chain", async () => {
+        const joined = await new Item$()
+          .whereHas("category", { title: "Tea" })
+          .orderBy("id")
+          .withJoin(["category"]);
+        assertEquals(joined.items.length, 1);
+        assertEquals(joined.items[0].name, "Assam");
+        assertEquals(joined.items[0].category.title, "Tea");
+      });
+
+      await t.step(
+        "a find() LIMIT does not leak into the next query",
+        async () => {
+          const m = new Item$();
+          await m.find("Assam", "name");
+          await m.where({ name: ["Assam", "Kangra"] }).get();
+          assertEquals(m.items.length, 2);
+        },
+      );
 
       await t.step("delete reports affected rows", async () => {
         const db = DB<Item>("the_pg_items", itemCols);

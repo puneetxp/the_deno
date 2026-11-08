@@ -2,6 +2,7 @@ import { database, DB } from "./DB.ts";
 import type { relation, TheData } from "./type.ts";
 import { buildJoinQuery } from "./model/sqlBuilder.ts";
 import { runQuery } from "./model/executor.ts";
+import { ident } from "./sql_dialect.ts";
 
 type RelationFactory = Model<any> | (() => Model<any>);
 export abstract class Model<_model> {
@@ -129,9 +130,111 @@ export abstract class Model<_model> {
     this.db.resetdata();
     return this;
   }
-  public where(where: any, reset: boolean = true): this {
+  /**
+   * Add conditions; calls chain with AND: where({a: 1}).where({b: [2, 3]}).
+   * The builder is cleared after every query, so a new query starts empty.
+   * Pass reset = true to drop conditions added earlier in this chain.
+   */
+  public where(where: any, reset: boolean = false): this {
     reset && this.reset();
     this.db.where(where);
+    return this;
+  }
+
+  /**
+   * Keep rows that have at least one related row, by relation name from the
+   * model's relations map. Conditions on the related model go in `where`, as
+   * an object or as a function that builds on the related model:
+   *   Book_stock$().whereHas("book", { public_listing: 1 })
+   *   Book$().whereHas("book_stock", (s) => s.where({ publish: 1 }).whereHas("product", { enable: 1 }))
+   */
+  public whereHas(
+    relation: string,
+    where?: Record<string, any> | ((related: Model<any>) => Model<any>),
+    type: "AND" | "OR" = "AND",
+  ): this {
+    return this.relationExists(relation, where, type, "EXISTS");
+  }
+
+  /** Keep rows with no related row matching `where` (see whereHas). */
+  public whereNotHas(
+    relation: string,
+    where?: Record<string, any> | ((related: Model<any>) => Model<any>),
+    type: "AND" | "OR" = "AND",
+  ): this {
+    return this.relationExists(relation, where, type, "NOT EXISTS");
+  }
+
+  public orderBy(column: string, direction: "ASC" | "DESC" = "ASC"): this {
+    this.db.OrderQ(column, direction);
+    return this;
+  }
+
+  public limit(count: number, offset: number = 0): this {
+    if (
+      !Number.isInteger(count) || count < 0 || !Number.isInteger(offset) ||
+      offset < 0
+    ) {
+      throw new Error(
+        `limit needs whole numbers >= 0, got ${count}, ${offset}`,
+      );
+    }
+    this.db.LimitQ(count).OffsetQ(offset);
+    return this;
+  }
+
+  /** The SQL and parameters the current chain would run, without running it. */
+  public toSQL(): { sql: string; params: any[] } {
+    return this.db.toSQL();
+  }
+
+  // The name this model's table goes by in the SQL being built: an alias
+  // when it is the inner side of a whereHas.
+  protected sqlName?: string;
+  // How deep this model sits in nested whereHas calls (0 = the query itself).
+  protected hasDepth = 0;
+
+  private relationExists(
+    relation: string,
+    where:
+      | Record<string, any>
+      | ((related: Model<any>) => Model<any>)
+      | undefined,
+    type: "AND" | "OR",
+    op: "EXISTS" | "NOT EXISTS",
+  ): this {
+    const rel = this.relations[relation];
+    const related = rel ? this.instantiateRelation(relation) : null;
+    if (!rel || !related) {
+      throw new Error(
+        `${this.name}: no relation "${relation}" (has: ${
+          Object.keys(this.relations).join(", ")
+        })`,
+      );
+    }
+    // Aliased <table>__<depth>, so a relation to the same table (category ->
+    // parent category) and nested whereHas calls each refer to the right row.
+    // The alias depends only on the chain, so every adapter writes the same SQL.
+    related.hasDepth = this.hasDepth + 1;
+    const alias = `${rel.table}__${related.hasDepth}`;
+    related.sqlName = alias;
+    if (typeof where === "function") {
+      where(related);
+    } else if (where) {
+      related.where(where);
+    }
+    const inner = related.db.whereSQL();
+    related.db.resetdata();
+    const outer = this.sqlName ?? this.table;
+    this.db.WhereRawQ(
+      `${op} (SELECT 1 FROM ${rel.table} AS ${ident(alias)} WHERE ${
+        ident(alias)
+      }.${ident(rel.key)} = ${ident(outer)}.${ident(rel.name)}${
+        inner.sql ? ` AND (${inner.sql})` : ""
+      })`,
+      inner.params,
+      type,
+    );
     return this;
   }
 
@@ -410,21 +513,31 @@ export abstract class Model<_model> {
   }
 
   /**
-   * Eager load relations using SQL JOINs instead of multiple round-trips and JS-side O(n²) filtering.
-   * `relations` should be keys from the model's `relations` map.
-   * Optional `where` applies to the base table (AND conditions).
+   * Load rows with their related rows in one query: a LEFT JOIN per relation,
+   * generated from the model's relations map. Uses the chain built so far
+   * (where, whereHas, orderBy, limit); `where` is a shorthand for one more
+   * where() call.
    */
   public async withJoin(
     relations: string[],
     where?: Record<string, any>,
   ): Promise<this> {
     if (!relations?.length) return this;
+    if (where) this.where(where);
 
-    const baseAlias = "b";
+    // The base table goes by its own name, so whereHas conditions, which
+    // refer to it by table name, still match.
+    const baseAlias = this.table;
     const joins = relations.map((relName) => {
       const rel = this.relations[relName];
-      if (!rel) return null;
-      const relModel = this.instantiateRelation(relName);
+      const relModel = rel ? this.instantiateRelation(relName) : null;
+      if (!rel || !relModel) {
+        throw new Error(
+          `${this.name}: no relation "${relName}" (has: ${
+            Object.keys(this.relations).join(", ")
+          })`,
+        );
+      }
       return {
         alias: `r_${relName}`,
         table: rel.table,
@@ -442,17 +555,43 @@ export abstract class Model<_model> {
       prefix?: string;
     }>;
 
-    const { sql, placeholders } = buildJoinQuery(
-      this.table,
-      baseAlias,
-      this.model,
-      joins,
-      where,
-    );
-
-    const rows = await runQuery(this.db, sql, placeholders);
+    const { sql, params } = this.joinSQL(baseAlias, joins);
+    const rows = await runQuery(this.db, sql, params);
     this.items = this.hydrateJoinedRows(rows as any[], relations);
     return this;
+  }
+
+  /** The SQL withJoin(relations) would run for the chain so far, without running it. */
+  public withJoinSQL(relations: string[]): { sql: string; params: any[] } {
+    const joins = relations.map((relName) => {
+      const rel = this.relations[relName];
+      if (!rel) throw new Error(`${this.name}: no relation "${relName}"`);
+      const relModel = this.instantiateRelation(relName);
+      return {
+        alias: `r_${relName}`,
+        table: rel.table,
+        localKey: rel.name,
+        foreignKey: rel.key,
+        cols: (relModel as any)?.model ?? [],
+        prefix: relName,
+      };
+    });
+    return this.joinSQL(this.table, joins);
+  }
+
+  private joinSQL(
+    baseAlias: string,
+    joins: Parameters<typeof buildJoinQuery>[3],
+  ): { sql: string; params: any[] } {
+    const { sql } = buildJoinQuery(this.table, baseAlias, this.model, joins);
+    const where = this.db.whereSQL(baseAlias);
+    const order = this.db.orderSQL(baseAlias);
+    const limit = this.db.limitSQL();
+    this.db.resetdata();
+    return {
+      sql: sql + (where.sql ? ` WHERE ${where.sql}` : "") + order + limit,
+      params: where.params,
+    };
   }
 
   private hydrateJoinedRows(rows: any[], relations: string[]): any[] {

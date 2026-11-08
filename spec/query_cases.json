@@ -1,0 +1,103 @@
+{
+  "about": "Query builder cases every adapter of the framework must pass. `sql` is the MySQL form; the PostgreSQL form is the same with ? numbered $1, $2, ... and backticks as double quotes. Each case replays `chain` on `model` and compares the generated SQL and params exactly. `whereHas` / `whereNotHas` take an object of conditions, or a nested chain (list of steps) for the related model. The chain ends with toSQL (default) or withJoin.",
+  "models": {
+    "product": { "table": "products", "columns": ["id", "name", "enable"], "relations": {} },
+    "book": {
+      "table": "books", "columns": ["id", "public_listing"],
+      "relations": { "book_stock": { "model": "book_stock", "table": "book_stocks", "name": "id", "key": "book_id" } }
+    },
+    "book_stock": {
+      "table": "book_stocks", "columns": ["id", "publish"],
+      "relations": {
+        "book": { "model": "book", "table": "books", "name": "book_id", "key": "id" },
+        "product": { "model": "product", "table": "products", "name": "product_id", "key": "id" }
+      }
+    },
+    "category": {
+      "table": "categories", "columns": ["id", "enable"],
+      "relations": { "parent": { "model": "category", "table": "categories", "name": "category_id", "key": "id" } }
+    }
+  },
+  "cases": [
+    {
+      "name": "where calls chain with AND",
+      "model": "product",
+      "chain": [["where", { "enable": 1 }], ["where", { "id": [1, 2] }]],
+      "sql": "SELECT * FROM products WHERE `enable` IN (?) AND `id` IN (?, ?)",
+      "params": [1, 1, 2]
+    },
+    {
+      "name": "where with reset drops earlier conditions",
+      "model": "product",
+      "chain": [["where", { "enable": 1 }], ["where", { "id": 5 }, true]],
+      "sql": "SELECT * FROM products WHERE `id` IN (?)",
+      "params": [5]
+    },
+    {
+      "name": "an empty list matches nothing",
+      "model": "product",
+      "chain": [["where", { "id": [] }]],
+      "sql": "SELECT * FROM products WHERE 1 = 0",
+      "params": []
+    },
+    {
+      "name": "whereHas with conditions and with a nested chain",
+      "model": "book_stock",
+      "chain": [
+        ["where", { "publish": 1 }],
+        ["whereHas", "book", { "public_listing": 1 }],
+        ["whereHas", "product", [["where", { "enable": 1 }]]]
+      ],
+      "sql": "SELECT * FROM book_stocks WHERE `publish` IN (?) AND EXISTS (SELECT 1 FROM books AS `books__1` WHERE `books__1`.`id` = `book_stocks`.`book_id` AND (`public_listing` IN (?))) AND EXISTS (SELECT 1 FROM products AS `products__1` WHERE `products__1`.`id` = `book_stocks`.`product_id` AND (`enable` IN (?)))",
+      "params": [1, 1, 1]
+    },
+    {
+      "name": "nested whereHas refers to the inner alias",
+      "model": "book",
+      "chain": [
+        ["whereHas", "book_stock", [["where", { "publish": 1 }], ["whereHas", "product", { "enable": 1 }]]]
+      ],
+      "sql": "SELECT * FROM books WHERE EXISTS (SELECT 1 FROM book_stocks AS `book_stocks__1` WHERE `book_stocks__1`.`book_id` = `books`.`id` AND (`publish` IN (?) AND EXISTS (SELECT 1 FROM products AS `products__2` WHERE `products__2`.`id` = `book_stocks__1`.`product_id` AND (`enable` IN (?)))))",
+      "params": [1, 1]
+    },
+    {
+      "name": "a relation to the same table is aliased",
+      "model": "category",
+      "chain": [["whereHas", "parent", { "enable": 1 }]],
+      "sql": "SELECT * FROM categories WHERE EXISTS (SELECT 1 FROM categories AS `categories__1` WHERE `categories__1`.`id` = `categories`.`category_id` AND (`enable` IN (?)))",
+      "params": [1]
+    },
+    {
+      "name": "whereNotHas without conditions, then orderBy",
+      "model": "book",
+      "chain": [["whereNotHas", "book_stock"], ["orderBy", "id", "DESC"]],
+      "sql": "SELECT * FROM books WHERE NOT EXISTS (SELECT 1 FROM book_stocks AS `book_stocks__1` WHERE `book_stocks__1`.`book_id` = `books`.`id`) ORDER BY `id` DESC",
+      "params": []
+    },
+    {
+      "name": "limit and offset",
+      "model": "product",
+      "chain": [["orderBy", "name"], ["limit", 10, 20]],
+      "sql": "SELECT * FROM products ORDER BY `name` ASC LIMIT 10 OFFSET 20",
+      "params": []
+    },
+    {
+      "name": "withJoin uses the chain",
+      "model": "book_stock",
+      "chain": [
+        ["where", { "publish": 1 }],
+        ["whereHas", "book", { "public_listing": 1 }],
+        ["orderBy", "id", "DESC"],
+        ["limit", 10, 20],
+        ["withJoin", ["product"]]
+      ],
+      "sql": "SELECT `book_stocks`.`id` AS `id`, `book_stocks`.`publish` AS `publish`, `r_product`.`id` AS `product__id`, `r_product`.`name` AS `product__name`, `r_product`.`enable` AS `product__enable` FROM book_stocks `book_stocks` LEFT JOIN products `r_product` ON `book_stocks`.`product_id` = `r_product`.`id` WHERE `book_stocks`.`publish` IN (?) AND EXISTS (SELECT 1 FROM books AS `books__1` WHERE `books__1`.`id` = `book_stocks`.`book_id` AND (`public_listing` IN (?))) ORDER BY `book_stocks`.`id` DESC LIMIT 10 OFFSET 20",
+      "params": [1, 1]
+    }
+  ],
+  "errors": [
+    { "name": "unknown relation", "model": "book_stock", "chain": [["whereHas", "nope"]], "message": "no relation \"nope\"" },
+    { "name": "bad order direction", "model": "book_stock", "chain": [["orderBy", "id", "sideways"]], "message": "ASC or DESC" },
+    { "name": "negative limit", "model": "product", "chain": [["limit", -1]], "message": "whole numbers" }
+  ]
+}
