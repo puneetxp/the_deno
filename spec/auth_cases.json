@@ -1,5 +1,5 @@
 {
-    "about": "Password and CORS cases every adapter of the framework must pass (same file in the_deno, the_lib and the_go). Passwords: bcrypt cost 10; hashes from any adapter verify in all of them; old unsalted SHA3-256 hashes (the_deno base64, the_lib hex) still verify and must be re-hashed to bcrypt at login. Passwords over 72 bytes are refused when hashing. CORS: CORS=off (default) sends no CORS headers; CORS=on allows any origin, or only CORS_ORIGINS when that list is set.",
+    "about": "Password and CORS cases every adapter of the framework must pass (same file in the_deno, the_lib and the_go). Passwords: bcrypt cost 10. bcrypt reads only 72 bytes, so a password longer than 72 UTF-8 bytes is first reduced to base64(SHA3-256(password)) (44 characters); shorter ones are used as is (bcrypt_input). Hashes from any adapter verify in all of them. Old unsalted SHA3-256 hashes (the_deno base64, the_lib hex) still verify and must be re-hashed at login. A new password must have 6 to 128 characters (Unicode characters, not bytes); the messages say nothing about hashing. CORS: CORS=off (default) sends no CORS headers; CORS=on allows any origin, or only CORS_ORIGINS when that list is set.",
     "password": "s3cret-Pä55",
     "verify": [
         {
@@ -51,7 +51,6 @@
             "rehash": false
         }
     ],
-    "too_long": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "cors": [
         {
             "name": "off by default",
@@ -102,5 +101,117 @@
             "origin": "https://a.example",
             "allow": "https://a.example"
         }
-    ]
+    ],
+    "bcrypt_input": [
+        {
+            "name": "short English: used as is",
+            "password": "s3cret-Pä55",
+            "bytes": 12,
+            "chars": 11,
+            "input": "s3cret-Pä55"
+        },
+        {
+            "name": "exactly 72 bytes: used as is",
+            "password": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "bytes": 72,
+            "chars": 72,
+            "input": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        {
+            "name": "short Hindi (21 bytes): used as is",
+            "password": "पासवर्ड",
+            "bytes": 21,
+            "chars": 7,
+            "input": "पासवर्ड"
+        },
+        {
+            "name": "73 bytes English: SHA3-256, base64",
+            "password": "correct horse battery staple correct horse battery staple correct horse b",
+            "bytes": 73,
+            "chars": 73,
+            "input": "tP6lND5i1TJ9lq3fX2jGwyOTwk4u1I8ZhzwoYH15mi4="
+        },
+        {
+            "name": "long Hindi sentence: SHA3-256, base64",
+            "password": "मेरा पासवर्ड बहुत लंबा और सुरक्षित है",
+            "bytes": 99,
+            "chars": 37,
+            "input": "1F7ECn5RPWByIBATSmzWmdRu/A4VpCRemah/jDrnnpw="
+        },
+        {
+            "name": "20 emoji (80 bytes): SHA3-256, base64",
+            "password": "🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑",
+            "bytes": 80,
+            "chars": 20,
+            "input": "7eQHKCy6OjKu3dCdq3BCH+NA8gDsMK1dvlfCUrf1qVA="
+        }
+    ],
+    "verify_long": [
+        {
+            "name": "long password hashed by PHP: correct hors…",
+            "password": "correct horse battery staple correct horse battery staple correct horse b",
+            "stored": "$2y$10$qWFVg.xbHsg1PLaLuzIfrulth4UET6r2mEMZEzqPy9WBjBoYsc1YC",
+            "ok": true
+        },
+        {
+            "name": "long password hashed by PHP: मेरा पासवर्ड…",
+            "password": "मेरा पासवर्ड बहुत लंबा और सुरक्षित है",
+            "stored": "$2y$10$FiFbTOV9WrYqacbfmOH6peFaFpul43c83QiujtUDOf3dy7QEJhofy",
+            "ok": true
+        },
+        {
+            "name": "long password hashed by PHP: 🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑…",
+            "password": "🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑🔑",
+            "stored": "$2y$10$qGD.EM4qlam6XTn3k8jDv.zSpYX2Uo5O7E4V8SyHEHsH0eb1/fXgC",
+            "ok": true
+        },
+        {
+            "name": "the whole password counts: its first 72 bytes do not match",
+            "password": "correct horse battery staple correct horse battery staple correct horse ",
+            "stored": "$2y$10$qWFVg.xbHsg1PLaLuzIfrulth4UET6r2mEMZEzqPy9WBjBoYsc1YC",
+            "ok": false
+        },
+        {
+            "name": "the whole password counts: a changed last character does not match",
+            "password": "correct horse battery staple correct horse battery staple correct horse Y",
+            "stored": "$2y$10$qWFVg.xbHsg1PLaLuzIfrulth4UET6r2mEMZEzqPy9WBjBoYsc1YC",
+            "ok": false
+        }
+    ],
+    "new_password": {
+        "min_chars": 6,
+        "max_chars": 128,
+        "too_short": "Password must be at least 6 characters",
+        "too_long": "Password is too long",
+        "cases": [
+            {
+                "password": "12345",
+                "error": "Password must be at least 6 characters"
+            },
+            {
+                "password": "123456",
+                "error": null
+            },
+            {
+                "password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "error": null
+            },
+            {
+                "password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "error": "Password is too long"
+            },
+            {
+                "password": "हहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहह",
+                "error": null
+            },
+            {
+                "password": "हहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहहह",
+                "error": "Password is too long"
+            },
+            {
+                "password": "🔑🔑🔑🔑🔑",
+                "error": "Password must be at least 6 characters"
+            }
+        ]
+    }
 }
