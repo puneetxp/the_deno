@@ -5,7 +5,10 @@ import { compile_routes, compile_url_pattern, Router } from "./router.ts";
 import { response } from "./response.ts";
 
 const routes = compile_url_pattern(compile_routes([
-  { path: "/p", handler: (session) => Promise.resolve(response.JSON("p", session)) },
+  {
+    path: "/p",
+    handler: (session) => Promise.resolve(response.JSON("p", session)),
+  },
 ]));
 const ask = (method: string) =>
   new Router(

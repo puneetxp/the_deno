@@ -1,0 +1,101 @@
+{
+    "about": "bcrypt hashes made by PHP password_hash(); each adapter must compute the same digest from the same salt and verify them",
+    "vectors": [
+        {
+            "password": "",
+            "hash": "$2y$04$K3jOP.g6B7hcgTW0XqVeWeQzWGsko28RvrRe.jrtsenHOpdbuN.Qq"
+        },
+        {
+            "password": "a",
+            "hash": "$2y$04$INqnvQSNMdoQFjIlh9B54eOOeauvENvFgEfplPoEyZk3BCeJ.qqV."
+        },
+        {
+            "password": "abc",
+            "hash": "$2y$04$iktQGQRzAClYIhnZTdtAi.PzCErDXUplZCZFc8gujdK93HoSEWeT2"
+        },
+        {
+            "password": "s3cret-Pä55",
+            "hash": "$2y$04$TdTpKtMkD8muTmpyxY3S8uNyxGJiOXEXruH5K/hxtSURXINpvrlOy"
+        },
+        {
+            "password": "日本語のパスワード",
+            "hash": "$2y$04$OFhUaW0O95ww4oMbGW7wyO1bZ4Hb6AkqCnFERfS5mq5lIaI.t6VC."
+        },
+        {
+            "password": "pass word with spaces",
+            "hash": "$2y$04$eGjMmyTVVjGZWV5xFuJ/v.furB4cjUr9j.i2sGQz3ggthxFquj6de"
+        },
+        {
+            "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "hash": "$2y$04$8usbv75wkIFnV2vVV7TmC.G7/xGMeWELzolaaxZp5kB1ylVVYR5AC"
+        },
+        {
+            "password": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+            "hash": "$2y$04$IRY9ZfLT0GydmMIonhGUUeQchO2NhY3IFqGGHo6Ky00K1BWjnrY0e"
+        },
+        {
+            "password": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+            "hash": "$2y$04$PRd6Ns7FSrCvgdYqJhYbr.x4w9MFRK2FoOJYiBkKp98qorLCHpRWS"
+        },
+        {
+            "password": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "hash": "$2y$04$DIaoVBo2PhdnSKBlXB.z7OXSW2P5DXVKZuK4HBw.4jcFcDXA1ONBK"
+        },
+        {
+            "password": "!@#$%^&*()_+-=[]{};:,.<>/?|~`",
+            "hash": "$2y$04$fd6CJuIWJ0oYKlHxzKEgn.bCeZvG/JI9iWDnJvy6ONAMRE7JTUiJK"
+        },
+        {
+            "password": "longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong",
+            "hash": "$2y$04$ZS1EG1zPc0ditmQWW5HgCOuEVOhM7KFzOyyGX2g6FExT2ackh.k5O"
+        },
+        {
+            "password": "",
+            "hash": "$2y$10$ptEGip5rrbGTMsepN6ZkT.S7nCNCEyHI.6gnZhHM0tSOfCjMwr1bq"
+        },
+        {
+            "password": "a",
+            "hash": "$2y$10$i9u2yoCA4wK4zZPlBsb5x.v3iqLrLVSKwmui8pmfJKWM0Nodqd6F."
+        },
+        {
+            "password": "abc",
+            "hash": "$2y$10$R2tRPuxX0OKQ6uy3JM1MNuT/0UgIh7LbI9Laf070tX6k6w7U8EJpW"
+        },
+        {
+            "password": "s3cret-Pä55",
+            "hash": "$2y$10$3OPbGHfZbU0o.0kS1d83HuHsOCUBJ4JpQbrrJqnhEsFE0uaXkdD5G"
+        },
+        {
+            "password": "日本語のパスワード",
+            "hash": "$2y$10$E5enTxermo0wWd7tfejkdekJ/vz2hjrs027gGUPu2wnlrwZ327/R."
+        },
+        {
+            "password": "pass word with spaces",
+            "hash": "$2y$10$Vq09f07XV9HTvgRWTurY4u9.T/N4D0j.LrAy86a57bK6IS/Z7pvhe"
+        },
+        {
+            "password": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "hash": "$2y$10$NzrHE2UFsvR2CIBatjMJdev3lt8p4frNlKNZky9NTyOw5ttUNyPXi"
+        },
+        {
+            "password": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+            "hash": "$2y$10$We3zgb1skI8c1L8GCGnzlOsRW36Grty0FD9iHbgks052eOCwfO5sq"
+        },
+        {
+            "password": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+            "hash": "$2y$10$bjIvTjOiBEs35QDgL3Oum.nRzvnniaZV/qh3PI.RVmUy0ywsZDNaq"
+        },
+        {
+            "password": "üüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüüü",
+            "hash": "$2y$10$mGVzY/Vmtyt/Et8S2QI28OGUz1f2jEoiQGVLGM28/GQO6VtCyTpIK"
+        },
+        {
+            "password": "!@#$%^&*()_+-=[]{};:,.<>/?|~`",
+            "hash": "$2y$10$xYogfcCOGLTNaMBAgsJHJuhQZySaFKJmB8x0537PeUfLm97yyI44S"
+        },
+        {
+            "password": "longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong",
+            "hash": "$2y$10$PxzVmJ1bOp7XqwKMqvUgsuMNpyM0LHWHPPpLNrXTeWlGJ63G1OWFu"
+        }
+    ]
+}

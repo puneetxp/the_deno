@@ -1,10 +1,10 @@
-// Password hashing shared by every adapter (spec/auth_cases.json): bcrypt,
+// Password hashing shared by every adapter (spec/auth_cases.json): bcrypt
+// (src/bcrypt.ts, no npm packages),
 // cost 10. Hashes from the Deno, PHP and Go adapters verify in each other.
 // Older accounts hold an unsalted SHA3-256 hash (the_deno: base64, the_lib:
 // hex); they still log in, and verifyPassword says to re-hash them.
 
-// @deno-types="npm:@types/bcryptjs@2.4.6"
-import bcrypt from "npm:bcryptjs@2.4.3";
+import { bcryptCost, bcryptHash, bcryptVerify } from "./bcrypt.ts";
 import { crypto, encodeBase64 } from "../deps.ts";
 
 export const PASSWORD_COST = 10;
@@ -22,7 +22,7 @@ export async function hashPassword(password: string): Promise<string> {
   if (new TextEncoder().encode(password).length > PASSWORD_MAX_BYTES) {
     throw new PasswordTooLong();
   }
-  return await bcrypt.hash(password, PASSWORD_COST);
+  return await Promise.resolve(bcryptHash(password, PASSWORD_COST));
 }
 
 function sameString(a: string, b: string): boolean {
@@ -43,9 +43,8 @@ export async function verifyPassword(
 ): Promise<{ ok: boolean; rehash: boolean }> {
   if (!stored) return { ok: false, rehash: false };
   if (stored.startsWith("$2")) {
-    const ok = await bcrypt.compare(password, stored);
-    const cost = Number(stored.slice(4, 6));
-    return { ok, rehash: ok && cost !== PASSWORD_COST };
+    const ok = bcryptVerify(password, stored);
+    return { ok, rehash: ok && bcryptCost(stored) !== PASSWORD_COST };
   }
   const raw = new Uint8Array(
     await crypto.subtle.digest(

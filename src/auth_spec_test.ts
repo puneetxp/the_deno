@@ -19,7 +19,7 @@ for (const c of spec.verify) {
 
 Deno.test("password: a new hash is bcrypt cost 10, salted, and verifies", async () => {
   const h = await hashPassword(spec.password);
-  assertEquals(h.slice(0, 7), "$2a$10$");
+  assertEquals(h.slice(0, 7), "$2b$10$");
   assertEquals(await verifyPassword(spec.password, h), {
     ok: true,
     rehash: false,
