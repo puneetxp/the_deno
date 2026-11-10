@@ -1,6 +1,8 @@
 // A connection pool with mysql2's pool.query(sql, values) behaviour.
 
-import { Connection, type ConnectOptions, MySQLError } from "./connection.ts";
+import { Connection } from "./connection.ts";
+import { MySQLError } from "./errors.ts";
+import type { ConnectOptions } from "./types.ts";
 import { format } from "./format.ts";
 
 export type PoolOptions = ConnectOptions & {

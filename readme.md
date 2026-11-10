@@ -402,8 +402,10 @@ DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno
 DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A --unstable-kv src/
 ```
 
-The MySQL client's own tests (`src/mysql/mysql_test.ts`) use the same variables
-and create and drop `the_my_t` and the procedure `the_my_p`.
+The MySQL client's own tests are `src/mysql/unit_test.ts` (no server) and
+`src/mysql/server_test.ts`, which uses the same variables and creates and drops
+`the_my_t` and the procedure `the_my_p`. `src/mysql/mod.ts` lists what each file
+of the client does.
 
 ## Passwords and CORS (the same in every adapter)
 
