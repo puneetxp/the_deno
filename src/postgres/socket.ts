@@ -27,6 +27,8 @@ export class MessageSocket {
   type = 0;
   /** Set while a command runs; data arriving otherwise is checked. */
   busy = false;
+  /** Transaction status from the last ReadyForQuery: I(dle), T (in one), E (failed). */
+  txStatus = 0x49;
 
   constructor(conn: Deno.Conn) {
     this.#conn = conn;

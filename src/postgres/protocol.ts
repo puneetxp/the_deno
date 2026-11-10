@@ -33,6 +33,7 @@ export const B = {
 /** Messages the client sends. */
 export const F = {
   Bind: 0x42, // B
+  Close: 0x43, // C
   Describe: 0x44, // D
   Execute: 0x45, // E
   Parse: 0x50, // P

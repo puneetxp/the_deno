@@ -168,6 +168,9 @@ async function postgresRunner(): Promise<Runner> {
     database: Deno.env.get("DBNAME"),
     max: Number(Deno.env.get("DBPOOL") ?? "4"),
   };
+  // Prepared statements kept per connection; DBSTATEMENTS=0 turns it off
+  // (needed behind PgBouncer in transaction mode before 1.21).
+  const statementCache = Number(Deno.env.get("DBSTATEMENTS") ?? "256");
   let pool: PgPool;
   if (pgClient === "pg") {
     const mod: any = await import("npm:pg@8.13.1");
@@ -189,7 +192,7 @@ async function postgresRunner(): Promise<Runner> {
       },
     });
   } else {
-    pool = createPgPool({ ...config, tls: await tlsSetting() });
+    pool = createPgPool({ ...config, statementCache, tls: await tlsSetting() });
   }
   return {
     async run(sql, values, action) {

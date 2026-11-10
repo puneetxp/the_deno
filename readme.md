@@ -330,17 +330,18 @@ Router/Framework Flow
 
 The connection comes from environment variables (`.env` is loaded):
 
-| Variable                    | Meaning                                                                   |
-| --------------------------- | ------------------------------------------------------------------------- |
-| `DBDRIVER`                  | `mysql` (default; also `mariadb`) or `postgres` (also `postgresql`, `pg`) |
-| `DBHOST`                    | Server host                                                               |
-| `DBPORT`                    | Port; default `3306` for MySQL, `5432` for PostgreSQL                     |
-| `DBSOCKET`                  | MySQL: socket file (auto-detected). PostgreSQL: socket directory          |
-| `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                                  |
-| `DBPOOL`                    | Pool size, default `4`                                                    |
-| `DBSSL`, `DBSSL_CA`         | `DBSSL=on` for TLS over TCP; `DBSSL_CA` is a CA file (PEM)                |
-| `MYSQL_CLIENT`              | `native` (default) or `mysql2` to use `npm:mysql2` instead                |
-| `PG_CLIENT`                 | `native` (default) or `pg` to use `npm:pg` instead                        |
+| Variable                    | Meaning                                                                       |
+| --------------------------- | ----------------------------------------------------------------------------- |
+| `DBDRIVER`                  | `mysql` (default; also `mariadb`) or `postgres` (also `postgresql`, `pg`)     |
+| `DBHOST`                    | Server host                                                                   |
+| `DBPORT`                    | Port; default `3306` for MySQL, `5432` for PostgreSQL                         |
+| `DBSOCKET`                  | MySQL: socket file (auto-detected). PostgreSQL: socket directory              |
+| `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                                      |
+| `DBPOOL`                    | Pool size, default `4`                                                        |
+| `DBSSL`, `DBSSL_CA`         | `DBSSL=on` for TLS over TCP; `DBSSL_CA` is a CA file (PEM)                    |
+| `MYSQL_CLIENT`              | `native` (default) or `mysql2` to use `npm:mysql2` instead                    |
+| `PG_CLIENT`                 | `native` (default) or `pg` to use `npm:pg` instead                            |
+| `DBSTATEMENTS`              | PostgreSQL: prepared statements cached per connection, default `256`; `0` off |
 
 The pool is opened on the first query. Both databases are reached through
 built-in TypeScript clients (`src/mysql/`, `src/postgres/`) on Deno's TCP/TLS,
@@ -395,8 +396,8 @@ use the simple protocol; with parameters, the extended protocol.
 
 Against npm:pg (PGlite, one connection), the built-in client starts in about 40
 ms instead of about 200 ms, uses about 100 MB less memory, and is faster on
-single-row queries (about 1,950/s against 1,450/s), inserts (2,130/s against
-1,400/s) and 1000-row selects (420/s against 350/s).
+single-row queries (about 2,900/s against 1,500/s), inserts (2,980/s against
+1,530/s) and 1000-row selects (420/s against 355/s).
 
 Queries are written once, MySQL-style: `?` placeholders and backtick-quoted
 identifiers, in the builder and in `raw()` SQL alike. On PostgreSQL they are

@@ -157,3 +157,63 @@ Deno.test({
     assert(c.closed);
   },
 });
+
+Deno.test({
+  name: "server: cached statements are prepared again when they go stale",
+  ignore: !enabled,
+  async fn() {
+    const c = await Connection.connect(opts());
+    try {
+      await c.query("DROP TABLE IF EXISTS the_pg_t");
+      await c.query("CREATE TABLE the_pg_t (id int, name text)");
+      await c.query("INSERT INTO the_pg_t VALUES ($1, $2)", [1, "a"]);
+      const sql = "SELECT * FROM the_pg_t WHERE id = $1";
+      assertEquals((await c.query(sql, [1]))[0].rows, [{ id: 1, name: "a" }]);
+      // Same text again: served from the cache.
+      assertEquals((await c.query(sql, [1]))[0].rows, [{ id: 1, name: "a" }]);
+
+      // The server forgets every prepared statement.
+      await c.query("DEALLOCATE ALL");
+      assertEquals((await c.query(sql, [1]))[0].rows, [{ id: 1, name: "a" }]);
+
+      // The result shape changes ("cached plan must not change result type").
+      await c.query("ALTER TABLE the_pg_t ADD COLUMN extra int DEFAULT 7");
+      const r = (await c.query(sql, [1]))[0];
+      assertEquals(r.rows, [{ id: 1, name: "a", extra: 7 }]);
+      assertEquals(r.fields.map((f) => f.name), ["id", "name", "extra"]);
+
+      // A statement that fails to prepare is not cached.
+      await assertRejects(() => c.query("SELEC $1", [1]), PostgresError);
+      await assertRejects(() => c.query("SELEC $1", [1]), PostgresError);
+      await c.query("DROP TABLE the_pg_t");
+    } finally {
+      await c.close();
+    }
+  },
+});
+
+Deno.test({
+  name: "server: a small statement cache closes what it evicts",
+  ignore: !enabled,
+  async fn() {
+    const c = await Connection.connect({ ...opts(), statementCache: 2 });
+    try {
+      // A tag of our own: some servers (PGlite) share one session among
+      // connections, so others' statements may be listed too.
+      const tag = `evict_${Date.now()}`;
+      for (let i = 0; i < 6; i++) {
+        const r = await c.query(`SELECT $1::int + ${i} AS v /* ${tag} */`, [
+          1,
+        ]);
+        assertEquals(r[0].rows, [{ v: 1 + i }]);
+      }
+      const left = await c.query(
+        `SELECT count(*)::int AS n FROM pg_prepared_statements WHERE statement LIKE '%${tag}%'`,
+      );
+      // The 2 kept, plus one evicted that is closed with the next statement.
+      assert((left[0].rows[0].n as number) <= 3);
+    } finally {
+      await c.close();
+    }
+  },
+});

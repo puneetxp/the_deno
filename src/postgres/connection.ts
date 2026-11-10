@@ -15,17 +15,22 @@ import { F, Writer } from "./protocol.ts";
 import { extendedQuery, simpleQuery } from "./query.ts";
 import { MessageSocket } from "./socket.ts";
 import { type ServerInfo, startup } from "./startup.ts";
+import { StatementCache } from "./statements.ts";
 import type { ConnectOptions, QueryResult } from "./types.ts";
 
 export class Connection {
   #socket: MessageSocket;
   #lock: Promise<unknown> = Promise.resolve();
+  #statements: StatementCache | undefined;
   /** ParameterStatus values from the server (server_version, TimeZone, ...). */
   parameters: Record<string, string> = {};
   processId = 0;
 
-  private constructor(socket: MessageSocket) {
+  private constructor(socket: MessageSocket, cacheSize: number) {
     this.#socket = socket;
+    this.#statements = cacheSize > 0
+      ? new StatementCache(cacheSize)
+      : undefined;
   }
 
   /** True once the connection can no longer be used. */
@@ -50,7 +55,7 @@ export class Connection {
       () => socket.fail(new PostgresError("connect timeout", { fatal: true })),
       opts.connectTimeout ?? 10000,
     );
-    const c = new Connection(socket);
+    const c = new Connection(socket, opts.statementCache ?? 256);
     try {
       const info: ServerInfo = await startup(socket, opts, isUnix);
       c.parameters = info.parameters;
@@ -93,7 +98,7 @@ export class Connection {
     socket.busy = true;
     try {
       return params && params.length
-        ? await extendedQuery(socket, sql, params)
+        ? await extendedQuery(socket, sql, params, this.#statements)
         : await simpleQuery(socket, sql);
     } catch (e) {
       // A server error leaves the connection usable (it was read up to

@@ -1,13 +1,16 @@
 // Running statements, as npm:pg does: the simple protocol (Query) when there
 // are no parameters, which also allows several statements; otherwise the
-// extended protocol (Parse, Bind, Describe, Execute, Sync) with an unnamed
-// statement.
+// extended protocol (Parse, Describe, Bind, Execute, Sync), with prepared
+// statements cached per connection as pgx does (statements.ts).
 
-import { type PostgresError, protocolError, serverError } from "./errors.ts";
-import { B, F, Reader, Writer } from "./protocol.ts";
+import { PostgresError, protocolError, serverError } from "./errors.ts";
+import { B, enc, F, Reader, Writer } from "./protocol.ts";
 import type { MessageSocket } from "./socket.ts";
+import type { Prepared, StatementCache } from "./statements.ts";
 import type { FieldDef, QueryResult, Row } from "./types.ts";
 import { type Decode, decoder, encodeParam } from "./values.ts";
+
+type Param = ReturnType<typeof encodeParam>;
 
 /** A RowDescription body. */
 export function parseRowDescription(body: Uint8Array): FieldDef[] {
@@ -66,13 +69,18 @@ function emptyResult(): QueryResult {
 /**
  * Read messages until ReadyForQuery, collecting one result per statement.
  * A server error is thrown only after ReadyForQuery, so the connection is
- * in step for the next query.
+ * in step for the next query. `known` gives the columns of a cached
+ * statement, whose rows come without a RowDescription.
  */
-async function readResults(socket: MessageSocket): Promise<QueryResult[]> {
+async function readResults(
+  socket: MessageSocket,
+  known?: Prepared,
+): Promise<QueryResult[]> {
   const results: QueryResult[] = [];
   let current = emptyResult();
-  let names: string[] = [];
-  let decs: Decode[] = [];
+  let names: string[] = known?.names ?? [];
+  let decs: Decode[] = known?.decoders ?? [];
+  if (known) current.fields = known.fields;
   let error: PostgresError | null = null;
   while (true) {
     // Rows already in the buffer are parsed without an await each.
@@ -90,6 +98,7 @@ async function readResults(socket: MessageSocket): Promise<QueryResult[]> {
         commandTag(new Reader(body).cstr(), current);
         results.push(current);
         current = emptyResult();
+        if (known) current.fields = known.fields;
         break;
       case B.EmptyQueryResponse:
         results.push(current);
@@ -99,11 +108,14 @@ async function readResults(socket: MessageSocket): Promise<QueryResult[]> {
         error ??= serverError(body);
         break;
       case B.ReadyForQuery:
+        socket.txStatus = body[0];
         if (error) throw error;
         return results;
       case B.ParseComplete:
       case B.BindComplete:
+      case B.CloseComplete:
       case B.NoData:
+      case B.ParameterDescription:
       case B.NoticeResponse:
       case B.ParameterStatus:
       case B.NotificationResponse:
@@ -128,16 +140,9 @@ export async function simpleQuery(
   return await readResults(socket);
 }
 
-/** Run one statement with parameters ($1, $2, ...) through the extended protocol. */
-export async function extendedQuery(
-  socket: MessageSocket,
-  sql: string,
-  params: unknown[],
-): Promise<QueryResult[]> {
-  const values = params.map(encodeParam);
-  const w = new Writer();
-  w.start(F.Parse).cstr("").cstr(sql).i16(0); // unnamed; server infers types
-  w.start(F.Bind).cstr("").cstr("");
+/** Bind (with the parameters), Execute and Sync for a statement name. */
+function bindExecute(w: Writer, statement: string, values: Param[]) {
+  w.start(F.Bind).cstr("").cstr(statement);
   // Parameter formats: bytes go as binary (1), everything else as text (0).
   w.i16(values.length);
   for (const v of values) w.i16(v instanceof Uint8Array ? 1 : 0);
@@ -145,14 +150,74 @@ export async function extendedQuery(
   for (const v of values) {
     if (v === null) w.i32(-1);
     else {
-      const bytes = typeof v === "string" ? new TextEncoder().encode(v) : v;
+      const bytes = typeof v === "string" ? enc.encode(v) : v;
       w.i32(bytes.length).bytes(bytes);
     }
   }
   w.i16(1).i16(0); // all results as text
-  w.start(F.Describe).u8(0x50).cstr(""); // 'P': the portal
   w.start(F.Execute).cstr("").i32(0); // all rows
   w.start(F.Sync);
+}
+
+/** Errors meaning a cached statement is gone or out of date. */
+function isStale(e: unknown): boolean {
+  if (!(e instanceof PostgresError)) return false;
+  return e.code === "26000" || // prepared statement does not exist
+    (e.code === "0A000" && /cached plan/.test(e.message)); // schema changed
+}
+
+/**
+ * Run one statement with parameters ($1, $2, ...) through the extended
+ * protocol. With a cache (as pgx does), each SQL text is prepared once per
+ * connection; later runs send only Bind/Execute. Either way it is one round
+ * trip.
+ */
+export async function extendedQuery(
+  socket: MessageSocket,
+  sql: string,
+  params: unknown[],
+  cache?: StatementCache,
+): Promise<QueryResult[]> {
+  const values = params.map(encodeParam);
+  const w = new Writer();
+  if (!cache) {
+    w.start(F.Parse).cstr("").cstr(sql).i16(0); // unnamed; server infers types
+    w.start(F.Describe).u8(0x53).cstr(""); // 'S': the statement
+    bindExecute(w, "", values);
+    await socket.write(w.done());
+    return await readResults(socket);
+  }
+
+  for (const name of cache.takeClosed()) {
+    w.start(F.Close).u8(0x53).cstr(name); // not an error if it is gone
+  }
+  const known = cache.get(sql);
+  if (known) {
+    bindExecute(w, known.name, values);
+    await socket.write(w.done());
+    try {
+      return await readResults(socket, known);
+    } catch (e) {
+      // Prepared again below, unless a transaction has failed (the retry
+      // would only fail too).
+      if (!isStale(e) || socket.txStatus === 0x45) throw e;
+      cache.drop(sql);
+      return await extendedQuery(socket, sql, params, cache);
+    }
+  }
+
+  const name = cache.newName();
+  w.start(F.Parse).cstr(name).cstr(sql).i16(0);
+  w.start(F.Describe).u8(0x53).cstr(name); // its columns, once
+  bindExecute(w, name, values);
   await socket.write(w.done());
-  return await readResults(socket);
+  let results: QueryResult[];
+  try {
+    results = await readResults(socket);
+  } catch (e) {
+    cache.closeLater(name); // if Parse got that far
+    throw e;
+  }
+  cache.add(sql, name, results[0]?.fields ?? []);
+  return results;
 }

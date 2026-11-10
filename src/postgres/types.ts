@@ -11,6 +11,12 @@ export type ConnectOptions = {
   tls?: boolean | { caCerts?: string[]; hostname?: string };
   /** Milliseconds for connect + startup (default 10000). */
   connectTimeout?: number;
+  /**
+   * Prepared statements kept per connection (default 256; 0 turns the cache
+   * off). Needs a server that keeps sessions: not PgBouncer in transaction
+   * pooling mode before 1.21.
+   */
+  statementCache?: number;
 };
 
 /** A column of a result, with npm:pg's field names. */
