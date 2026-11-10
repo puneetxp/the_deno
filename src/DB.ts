@@ -1,4 +1,7 @@
-import { mysql2 } from "../deps.ts";
+import {
+  createPool as createMySQLPool,
+  type PoolOptions,
+} from "./mysql/mod.ts";
 import type { TheData } from "./type.ts";
 import { createCache, type KVCache } from "./KVCache.ts";
 import {
@@ -22,11 +25,9 @@ type CacheTarget =
   | { scope: "all" }
   | { scope: "id"; id: string | number };
 
-type QueryablePool = mysql2.Pool & {
-  query<T = unknown>(
-    sql: string,
-    values?: any[] | Record<string, unknown>,
-  ): Promise<[T, mysql2.FieldPacket[]]>;
+type QueryablePool = {
+  query(sql: string, values?: unknown): Promise<[any, any]>;
+  end(): Promise<void>;
 };
 
 function detectSocketPath(): string | null {
@@ -93,26 +94,48 @@ export async function closeDB(): Promise<void> {
   await r?.end();
 }
 
-function mysqlRunner(): Promise<Runner> {
+/**
+ * MySQL/MariaDB client: the built-in TypeScript one by default, or npm:mysql2
+ * with `MYSQL_CLIENT=mysql2` (loaded only then).
+ */
+export const mysqlClient: "native" | "mysql2" =
+  Deno.env.get("MYSQL_CLIENT")?.trim().toLowerCase() === "mysql2"
+    ? "mysql2"
+    : "native";
+
+async function mysqlRunner(): Promise<Runner> {
   const socketPath = detectSocketPath();
   const poolConfig = socketPath ? { socketPath } : {
     host: Deno.env.get("DBHOST"),
     port: Number(Deno.env.get("DBPORT") ?? "3306"),
   };
-  const pool = mysql2.createPool({
+  const config = {
     ...poolConfig,
     user: Deno.env.get("DBUSER"),
     password: Deno.env.get("DBPWD"),
     database: Deno.env.get("DBNAME"),
     connectionLimit: Number(Deno.env.get("DBPOOL") ?? "4"),
-  }) as QueryablePool;
-  return Promise.resolve({
+  };
+  let pool: QueryablePool;
+  if (mysqlClient === "mysql2") {
+    const mod: any = await import("npm:mysql2@3.11.0/promise");
+    pool = (mod.default ?? mod).createPool(config);
+  } else {
+    // DBSSL=on encrypts TCP connections; DBSSL_CA is an optional CA file (PEM).
+    const opts: PoolOptions = config;
+    if (["on", "1", "true"].includes(Deno.env.get("DBSSL") ?? "")) {
+      const ca = Deno.env.get("DBSSL_CA");
+      opts.tls = ca ? { caCerts: [await Deno.readTextFile(ca)] } : true;
+    }
+    pool = createMySQLPool(opts);
+  }
+  return {
     async run(sql, values) {
       const [rows, fields] = await pool.query(sql, values);
       return [rows, fields];
     },
     end: () => pool.end(),
-  });
+  };
 }
 
 // Minimal shape of npm:pg used here (it ships no types of its own).

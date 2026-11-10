@@ -338,9 +338,37 @@ The connection comes from environment variables (`.env` is loaded):
 | `DBSOCKET`                  | MySQL: socket file (auto-detected). PostgreSQL: socket directory          |
 | `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                                  |
 | `DBPOOL`                    | Pool size, default `4`                                                    |
+| `DBSSL`, `DBSSL_CA`         | MySQL: `DBSSL=on` for TLS over TCP; `DBSSL_CA` is a CA file (PEM)         |
+| `MYSQL_CLIENT`              | `native` (default) or `mysql2` to use `npm:mysql2` instead                |
 
 The pool is opened on the first query. `npm:pg` is loaded only when
 `DBDRIVER=postgres`.
+
+### The built-in MySQL/MariaDB client
+
+MySQL and MariaDB are reached through `src/mysql/`, a client written in
+TypeScript on Deno's TCP/TLS and Web Crypto, with no npm packages. It covers
+what the model layer needs: a pool, `query(sql, values)` and `end()`. It formats
+`?`/`??` placeholders and returns rows, `{ insertId, affectedRows }` and errors
+(`code`, `errno`, `sqlState`) as mysql2 did, so `MYSQL_CLIENT=mysql2` switches
+back without other changes.
+
+- Logins: `mysql_native_password`, `caching_sha2_password` (MySQL 8; the RSA key
+  exchange when there is no TLS), `sha256_password`, and `mysql_clear_password`
+  over TLS or a socket only. MariaDB's `ed25519` and `parsec` are not supported.
+- Values: integers come back as numbers, and BIGINT past 2^53 as an exact
+  string; DECIMAL as a string; DATE/DATETIME/TIMESTAMP as local-time `Date`s
+  (zero dates as an invalid `Date`, which is `null` in JSON); binary and BIT as
+  `Uint8Array`; MySQL's JSON type parsed.
+- A connection that the server closes while idle is dropped before reuse, and a
+  query that finds its connection broken before sending moves to another one.
+  Nothing that may have reached the server is retried.
+
+Measured against mysql2 on MariaDB 11.8 (the same Deno, 4 connections), the
+built-in client starts in about 20 ms instead of about 900 ms, uses about 25 MB
+less memory, and is faster on single-row queries and inserts (6,100/s against
+4,500/s with 4 running at once). 1000-row selects are within about 15% of
+mysql2.
 
 Queries are written once, MySQL-style: `?` placeholders and backtick-quoted
 identifiers, in the builder and in `raw()` SQL alike. On PostgreSQL they are
@@ -372,27 +400,41 @@ test against a real server, which creates and drops `the_pg_items` and
 
 ```sh
 DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno test -A src/
-DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A src/
+DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A --unstable-kv src/
 ```
+
+The MySQL client's own tests (`src/mysql/mysql_test.ts`) use the same variables
+and create and drop `the_my_t` and the procedure `the_my_p`.
 
 ## Passwords and CORS (the same in every adapter)
 
-`spec/auth_cases.json` holds the cases for both. The file is the same in the_deno, the_lib and the_go, and each adapter's tests read it.
+`spec/auth_cases.json` holds the cases for both. The file is the same in
+the_deno, the_lib and the_go, and each adapter's tests read it.
 
-**Passwords:** bcrypt, cost 10. A hash made by any adapter logs in through the others.
-- Old unsalted SHA3-256 hashes (the_deno base64, the_lib hex) still log in, and are replaced by bcrypt at that login.
-- Any length works: bcrypt reads only 72 bytes, so a password over 72 bytes is first reduced to base64(SHA3-256(password)), 44 characters. Every byte counts (a long Hindi passphrase is fine), and the stored hash is still a plain bcrypt string.
-- A new password must have 6 to 128 characters (Unicode characters, not bytes). The messages, "Password must be at least 6 characters" and "Password is too long", say nothing about how passwords are stored.
+**Passwords:** bcrypt, cost 10. A hash made by any adapter logs in through the
+others.
+
+- Old unsalted SHA3-256 hashes (the_deno base64, the_lib hex) still log in, and
+  are replaced by bcrypt at that login.
+- Any length works: bcrypt reads only 72 bytes, so a password over 72 bytes is
+  first reduced to base64(SHA3-256(password)), 44 characters. Every byte counts
+  (a long Hindi passphrase is fine), and the stored hash is still a plain bcrypt
+  string.
+- A new password must have 6 to 128 characters (Unicode characters, not bytes).
+  The messages, "Password must be at least 6 characters" and "Password is too
+  long", say nothing about how passwords are stored.
 
 **CORS:** a switch, off by default.
 
-| Setting | Effect |
-| --- | --- |
-| `CORS` unset or `off` | no other site may call the API with cookies; same-origin setups need nothing |
-| `CORS=on` | other sites may: any origin, for development |
-| `CORS=on` with `CORS_ORIGINS=https://a.com,https://b.com` | only those origins, for production |
+| Setting                                                   | Effect                                                                       |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `CORS` unset or `off`                                     | no other site may call the API with cookies; same-origin setups need nothing |
+| `CORS=on`                                                 | other sites may: any origin, for development                                 |
+| `CORS=on` with `CORS_ORIGINS=https://a.com,https://b.com` | only those origins, for production                                           |
 
-In Deno: `hashPassword` and `verifyPassword` (from `mod.ts`), and `CORS` / `CORS_ORIGINS` in the environment. The router now answers CORS preflights. Before, an `OPTIONS` request crashed the handler.
+In Deno: `hashPassword` and `verifyPassword` (from `mod.ts`), and `CORS` /
+`CORS_ORIGINS` in the environment. The router now answers CORS preflights.
+Before, an `OPTIONS` request crashed the handler.
 
 ## Querying through models
 

@@ -8,4 +8,4 @@ export {
   setCookie,
 } from "jsr:@std/http@1.0.8";
 export type { Cookie } from "jsr:@std/http@1.0.8";
-export * as mysql2 from "npm:mysql2@3.11.0/promise";
+// npm:mysql2 is optional now (MYSQL_CLIENT=mysql2); see src/DB.ts.
