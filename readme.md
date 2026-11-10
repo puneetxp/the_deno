@@ -367,8 +367,7 @@ back without other changes.
 Measured against mysql2 on MariaDB 11.8 (the same Deno, 4 connections), the
 built-in client starts in about 20 ms instead of about 900 ms, uses about 25 MB
 less memory, and is faster on single-row queries and inserts (6,100/s against
-4,500/s with 4 running at once). 1000-row selects are within about 15% of
-mysql2.
+4,500/s with 4 running at once). 1000-row selects are level with mysql2.
 
 Queries are written once, MySQL-style: `?` placeholders and backtick-quoted
 identifiers, in the builder and in `raw()` SQL alike. On PostgreSQL they are

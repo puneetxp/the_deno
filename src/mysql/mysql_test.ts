@@ -9,6 +9,7 @@ import {
   nativePassword,
   rsaEncryptPassword,
 } from "./auth.ts";
+import { localDate } from "./connection.ts";
 import { Connection, createPool, format, MySQLError, raw } from "./mod.ts";
 
 const hex = (b: Uint8Array) =>
@@ -243,4 +244,32 @@ Deno.test({
     );
     assertEquals(err.code, "ER_ACCESS_DENIED_ERROR");
   },
+});
+
+Deno.test("localDate: the same instant as the Date constructor, DST included", () => {
+  // Every 15 minutes through 2024-2025 crosses each DST change of the local
+  // zone (run with TZ=... to check another one).
+  const want = (y: number, mo: number, d: number, h: number, mi: number) => {
+    if (y >= 100) return new Date(y, mo - 1, d, h, mi);
+    const x = new Date(y + 400, mo - 1, d, h, mi);
+    x.setFullYear(y);
+    return x;
+  };
+  for (let t = Date.UTC(2024, 0, 1); t < Date.UTC(2026, 0, 1); t += 900000) {
+    const x = new Date(t);
+    const parts = [
+      x.getUTCFullYear(),
+      x.getUTCMonth() + 1,
+      x.getUTCDate(),
+      x.getUTCHours(),
+      x.getUTCMinutes(),
+    ] as const;
+    assertEquals(localDate(...parts, 0, 0).getTime(), want(...parts).getTime());
+  }
+  for (const y of [1, 99, 100, 1850, 1900, 9999]) {
+    assertEquals(
+      localDate(y, 6, 15, 12, 0, 0, 0).getTime(),
+      want(y, 6, 15, 12, 0).getTime(),
+    );
+  }
 });
