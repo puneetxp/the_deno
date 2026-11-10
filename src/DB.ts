@@ -1,7 +1,5 @@
-import {
-  createPool as createMySQLPool,
-  type PoolOptions,
-} from "./mysql/mod.ts";
+import { createPool as createMySQLPool } from "./mysql/mod.ts";
+import { createPool as createPgPool } from "./postgres/mod.ts";
 import type { TheData } from "./type.ts";
 import { createCache, type KVCache } from "./KVCache.ts";
 import {
@@ -121,13 +119,7 @@ async function mysqlRunner(): Promise<Runner> {
     const mod: any = await import("npm:mysql2@3.11.0/promise");
     pool = (mod.default ?? mod).createPool(config);
   } else {
-    // DBSSL=on encrypts TCP connections; DBSSL_CA is an optional CA file (PEM).
-    const opts: PoolOptions = config;
-    if (["on", "1", "true"].includes(Deno.env.get("DBSSL") ?? "")) {
-      const ca = Deno.env.get("DBSSL_CA");
-      opts.tls = ca ? { caCerts: [await Deno.readTextFile(ca)] } : true;
-    }
-    pool = createMySQLPool(opts);
+    pool = createMySQLPool({ ...config, tls: await tlsSetting() });
   }
   return {
     async run(sql, values) {
@@ -138,9 +130,9 @@ async function mysqlRunner(): Promise<Runner> {
   };
 }
 
-// Minimal shape of npm:pg used here (it ships no types of its own).
+// The part of a pool's result used here (npm:pg and src/postgres agree).
 type PgResult = {
-  command: string;
+  command: string | null;
   rowCount: number | null;
   rows: any[];
   fields: { name: string; dataTypeID: number }[];
@@ -152,10 +144,22 @@ type PgPool = {
 
 const PG_INT8 = 20;
 
+/**
+ * PostgreSQL client: the built-in TypeScript one by default, or npm:pg with
+ * `PG_CLIENT=pg` (loaded only then).
+ */
+export const pgClient: "native" | "pg" =
+  Deno.env.get("PG_CLIENT")?.trim().toLowerCase() === "pg" ? "pg" : "native";
+
+/** DBSSL=on (+ DBSSL_CA, a PEM file): TLS options for either client. */
+async function tlsSetting(): Promise<boolean | { caCerts: string[] }> {
+  if (!["on", "1", "true"].includes(Deno.env.get("DBSSL") ?? "")) return false;
+  const ca = Deno.env.get("DBSSL_CA");
+  return ca ? { caCerts: [await Deno.readTextFile(ca)] } : true;
+}
+
 async function postgresRunner(): Promise<Runner> {
-  const mod: any = await import("npm:pg@8.13.1");
-  const pg = mod.default ?? mod;
-  const pool: PgPool = new pg.Pool({
+  const config = {
     // DBSOCKET is the socket *directory* for PostgreSQL, e.g. /run/postgresql.
     host: Deno.env.get("DBSOCKET") || Deno.env.get("DBHOST"),
     port: Number(Deno.env.get("DBPORT") ?? "5432"),
@@ -163,25 +167,37 @@ async function postgresRunner(): Promise<Runner> {
     password: Deno.env.get("DBPWD"),
     database: Deno.env.get("DBNAME"),
     max: Number(Deno.env.get("DBPOOL") ?? "4"),
-    types: {
-      // bigint/bigserial ids come back as numbers, as they do from mysql2.
-      // DECIMAL/NUMERIC stay strings in both drivers.
-      getTypeParser(oid: number, format?: string) {
-        if (oid === PG_INT8) {
-          return (v: string) => {
-            const n = Number(v);
-            return Number.isSafeInteger(n) ? n : v;
-          };
-        }
-        return pg.types.getTypeParser(oid, format);
+  };
+  let pool: PgPool;
+  if (pgClient === "pg") {
+    const mod: any = await import("npm:pg@8.13.1");
+    const pg = mod.default ?? mod;
+    pool = new pg.Pool({
+      ...config,
+      types: {
+        // bigint/bigserial ids come back as numbers, as they do from mysql2
+        // (the built-in client does this itself). NUMERIC stays a string.
+        getTypeParser(oid: number, format?: string) {
+          if (oid === PG_INT8) {
+            return (v: string) => {
+              const n = Number(v);
+              return Number.isSafeInteger(n) ? n : v;
+            };
+          }
+          return pg.types.getTypeParser(oid, format);
+        },
       },
-    },
-  });
+    });
+  } else {
+    pool = createPgPool({ ...config, tls: await tlsSetting() });
+  }
   return {
     async run(sql, values, action) {
       const res = await pool.query(toPostgresSQL(sql), values);
       const last = Array.isArray(res) ? res[res.length - 1] : res;
-      const isWrite = ["INSERT", "UPDATE", "DELETE"].includes(last.command);
+      const isWrite = ["INSERT", "UPDATE", "DELETE"].includes(
+        last.command ?? "",
+      );
       if (isWrite && (action !== "RAW" || last.fields.length === 0)) {
         const ids = last.command === "INSERT"
           ? last.rows.map((r) => r?.id).filter((id) => id != null)

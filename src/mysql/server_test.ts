@@ -8,6 +8,13 @@ import { Connection, createPool, MySQLError } from "./mod.ts";
 const enabled = Deno.env.get("DBTEST") === "1" &&
   (Deno.env.get("DBDRIVER") ?? "mysql") !== "postgres";
 
+// DBSSL=on (+ DBSSL_CA, a PEM file) tests over TLS.
+function tls() {
+  if (!["on", "1", "true"].includes(Deno.env.get("DBSSL") ?? "")) return false;
+  const ca = Deno.env.get("DBSSL_CA");
+  return ca ? { caCerts: [Deno.readTextFileSync(ca)] } : true;
+}
+
 function opts() {
   const socketPath = Deno.env.get("DBSOCKET");
   return {
@@ -18,6 +25,7 @@ function opts() {
     user: Deno.env.get("DBUSER"),
     password: Deno.env.get("DBPWD"),
     database: Deno.env.get("DBNAME"),
+    tls: tls(),
   };
 }
 

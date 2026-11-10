@@ -15,6 +15,10 @@ export class PacketSocket {
   #pump: Promise<void> | null = null;
   #wake: (() => void) | null = null;
   #error: MySQLError | null = null;
+  // Resolved by fail(). In Deno, close() with a read pending neither wakes the
+  // read nor frees the socket until the read ends, so reads also wait on this.
+  #abort!: (v: null) => void;
+  #aborted = new Promise<null>((r) => (this.#abort = r));
   /** TLS or a local socket: safe for a clear-text password. */
   secure: boolean;
   /** Set while a command runs; data arriving otherwise is unexpected. */
@@ -39,11 +43,24 @@ export class PacketSocket {
   fail(err: MySQLError): void {
     if (this.#error) return;
     this.#error = err;
+    // Shut down our side first: the server sees the end of the stream and
+    // closes, which ends the pending read, and then the socket is closed.
+    // unref() keeps a server that never answers from holding the process.
+    const conn = this.#conn;
+    const close = () => {
+      try {
+        conn.close();
+      } catch {
+        // already closed
+      }
+    };
     try {
-      this.#conn.close();
+      conn.unref();
+      conn.closeWrite().then(close, close);
     } catch {
-      // already closed
+      close();
     }
+    this.#abort(null);
     this.#wake?.();
   }
 
@@ -93,7 +110,11 @@ export class PacketSocket {
     }
     let n: number | null;
     try {
-      n = await this.#conn.read(this.#buf.subarray(this.#end));
+      n = await Promise.race([
+        this.#conn.read(this.#buf.subarray(this.#end)),
+        this.#aborted,
+      ]);
+      if (this.#error) return false;
     } catch (e) {
       this.fail(connectionLost((e as Error).message));
       return false;

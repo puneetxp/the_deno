@@ -7,7 +7,7 @@ import {
   rsaEncryptPassword,
 } from "./auth.ts";
 import { format, raw } from "./format.ts";
-import { localDate } from "./values.ts";
+import { localDate } from "../local_date.ts";
 
 const hex = (b: Uint8Array) =>
   Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");

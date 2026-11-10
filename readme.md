@@ -338,11 +338,16 @@ The connection comes from environment variables (`.env` is loaded):
 | `DBSOCKET`                  | MySQL: socket file (auto-detected). PostgreSQL: socket directory          |
 | `DBUSER`, `DBPWD`, `DBNAME` | Credentials and database                                                  |
 | `DBPOOL`                    | Pool size, default `4`                                                    |
-| `DBSSL`, `DBSSL_CA`         | MySQL: `DBSSL=on` for TLS over TCP; `DBSSL_CA` is a CA file (PEM)         |
+| `DBSSL`, `DBSSL_CA`         | `DBSSL=on` for TLS over TCP; `DBSSL_CA` is a CA file (PEM)                |
 | `MYSQL_CLIENT`              | `native` (default) or `mysql2` to use `npm:mysql2` instead                |
+| `PG_CLIENT`                 | `native` (default) or `pg` to use `npm:pg` instead                        |
 
-The pool is opened on the first query. `npm:pg` is loaded only when
-`DBDRIVER=postgres`.
+The pool is opened on the first query. Both databases are reached through
+built-in TypeScript clients (`src/mysql/`, `src/postgres/`) on Deno's TCP/TLS,
+Web Crypto and std, with no npm packages; `npm:mysql2` or `npm:pg` is loaded
+only when `MYSQL_CLIENT`/`PG_CLIENT` asks for it. Each client's `mod.ts` lists
+what each of its files does; the pool (`src/conn_pool.ts`) and fast local-time
+dates (`src/local_date.ts`) are shared.
 
 ### The built-in MySQL/MariaDB client
 
@@ -368,6 +373,30 @@ Measured against mysql2 on MariaDB 11.8 (the same Deno, 4 connections), the
 built-in client starts in about 20 ms instead of about 900 ms, uses about 25 MB
 less memory, and is faster on single-row queries and inserts (6,100/s against
 4,500/s with 4 running at once). 1000-row selects are level with mysql2.
+
+### The built-in PostgreSQL client
+
+`src/postgres/` returns what npm:pg did: `{ command, rowCount, rows, fields }`,
+an array of those for text with several statements, and errors with pg's fields
+(`code` as SQLSTATE, `detail`, `constraint`, ...). Queries without parameters
+use the simple protocol; with parameters, the extended protocol.
+
+- Logins: SCRAM-SHA-256 (the default since PostgreSQL 14), md5, and clear text.
+  TLS with `DBSSL=on`; a `DBSOCKET` directory for a local socket.
+- Values: as pg-types, except that int8 (and int8[]) come back as numbers when
+  exact, as the model layer wants. numeric and money stay strings; date and
+  timestamp are local-time `Date`s, timestamptz the exact instant; json/jsonb
+  parsed; bytea as `Uint8Array`; arrays as arrays; interval as
+  `{ years, months, days, hours, minutes, seconds, milliseconds }`.
+- Parameters as pg sends them: `Date`s as local time with an offset, arrays as
+  array literals, objects as JSON, bytes in binary.
+- Notices and setting changes the server sends while idle are skipped; an idle
+  error (such as an idle-session timeout) drops the connection before reuse.
+
+Against npm:pg (PGlite, one connection), the built-in client starts in about 40
+ms instead of about 200 ms, uses about 100 MB less memory, and is faster on
+single-row queries (about 1,950/s against 1,450/s), inserts (2,130/s against
+1,400/s) and 1000-row selects (420/s against 350/s).
 
 Queries are written once, MySQL-style: `?` placeholders and backtick-quoted
 identifiers, in the builder and in `raw()` SQL alike. On PostgreSQL they are
@@ -398,14 +427,15 @@ test against a real server, which creates and drops `the_pg_items` and
 `the_pg_categories`:
 
 ```sh
-DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno test -A src/
+DBTEST=1 DBDRIVER=postgres DBHOST=127.0.0.1 DBUSER=postgres DBNAME=the_test deno test -A --unstable-kv src/
 DBTEST=1 DBHOST=127.0.0.1 DBUSER=root DBNAME=the_test deno test -A --unstable-kv src/
 ```
 
 The MySQL client's own tests are `src/mysql/unit_test.ts` (no server) and
 `src/mysql/server_test.ts`, which uses the same variables and creates and drops
-`the_my_t` and the procedure `the_my_p`. `src/mysql/mod.ts` lists what each file
-of the client does.
+`the_my_t` and the procedure `the_my_p`. The PostgreSQL client's are
+`src/postgres/unit_test.ts` and `src/postgres/server_test.ts` (with
+`DBDRIVER=postgres`; it creates and drops `the_pg_t`). `DBSSL` applies to both.
 
 ## Passwords and CORS (the same in every adapter)
 
